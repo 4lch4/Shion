@@ -80,5 +80,3 @@ The bot accepts these environment variables:
 - `DISCORD_APP_ID` or `DISCORD_APPLICATION_ID` or `DISCORD_CLIENT_ID`
 - `DISCORD_APP_TOKEN` or `DISCORD_TOKEN`
 - `DISCORD_GUILD_ID` (optional)
-
-Keep `.env` private. It is ignored by Git and excluded from the Docker build context.
