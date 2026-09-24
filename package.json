@@ -1,0 +1,33 @@
+{
+  "name": "shion",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "biome ci .",
+    "deploy:commands": "bun run src/deploy-commands.ts",
+    "dev": "bun --watch src/index.ts",
+    "format": "biome format --write .",
+    "format:check": "biome format .",
+    "lint": "biome lint .",
+    "prepare": "husky",
+    "start": "bun run src/index.ts",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "discord.js": "^14.27.0"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.5.14",
+    "@types/bun": "^1.4.2",
+    "@types/node": "^26.6.2",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.5.1",
+    "typescript": "^7.0.2"
+  },
+  "packageManager": "bun@1.4.2",
+  "engines": {
+    "bun": ">=1.4.2"
+  }
+}
