@@ -1,0 +1,3 @@
+{
+  "**/*.{js,ts,json,jsonc,md,yml,yaml}": ["bunx biome check --write --no-errors-on-unmatched"]
+}
