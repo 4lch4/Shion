@@ -20,9 +20,6 @@ jobs:
           images: |
             4lch4/shion-bot
           tags:
-            type=schedule
-            type=ref,event=branch
-            type=ref,event=pr
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=semver,pattern={{major}}
