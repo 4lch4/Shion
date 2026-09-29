@@ -1,10 +1,10 @@
 # Shion
 
-Shion is a Discord bot and a personal Software/DevOps/Site Reliability Engineering learning project. It currently provides a guild-scoped `/ping` command when a guild ID is configured, with global registration as a fallback.
+Shion is a Discord bot and a personal Software/DevOps/Site Reliability Engineering learning project.
 
 ## Requirements
 
-- Bun 1.4.2
+- Bun
 - A Discord application with a bot user
 - Docker Desktop or Docker Engine with Compose for the container workflow
 
