@@ -5,6 +5,8 @@ services:
       dockerfile: Dockerfile
     env_file:
       - .env
+    ports:
+      - "${API_PORT:-3000}:${API_PORT:-3000}"
     init: true
     restart: unless-stopped
 

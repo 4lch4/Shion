@@ -18,4 +18,5 @@ COPY --from=production-dependencies /app/node_modules ./node_modules
 COPY --from=dependencies /app/package.json ./package.json
 COPY src ./src
 USER bun
+EXPOSE 3000
 CMD ["bun", "run", "src/index.ts"]
