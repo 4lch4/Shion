@@ -20,6 +20,6 @@ describe('ping command', () => {
 
     await pingCommand.execute(interaction)
 
-    expect(replies).toEqual(['Pong pong!'])
+    expect(replies).toEqual(['Pong!'])
   })
 })

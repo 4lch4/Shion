@@ -3,6 +3,6 @@ import { type ChatInputCommandInteraction, SlashCommandBuilder } from 'discord.j
 export const pingCommand = {
   data: new SlashCommandBuilder().setName('ping').setDescription('Replies with Pong!'),
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
-    await interaction.reply('Pong pong!')
+    await interaction.reply('Pong!')
   },
 }
