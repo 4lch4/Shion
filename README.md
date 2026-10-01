@@ -162,19 +162,23 @@ on the host so callers outside the container can reach the API.
 
 Shion is pre-1.0, so the API contract may change in a minor release.
 
-Images are published to Docker Hub as `4lch4/shion-bot`. Each release produces three tags:
+Images are published to Docker Hub as `4lch4/shion-bot`. Each release produces four tags:
 
 | Tag      | Mutable | Use                                              |
 | -------- | ------- | ------------------------------------------------ |
 | `0.1.2`  | No      | Exact pin, or an immutable record of a release. |
-| `0.1`    | Yes     | Tracks the newest `0.1.x`. Use for auto-updating. |
+| `0.1`    | Yes     | Tracks the newest `0.1.x`.                      |
+| `latest` | Yes     | Tracks the newest release. Ad-hoc testing only. |
 | `sha-…`  | No      | Reproducible build reference.                    |
 
-There is no `latest` tag. Pull the exact release you want:
+`latest` is a convenience for trying the newest build. Do not deploy from it: it carries no version
+information, so "which version is running?" has no answer in the registry. A WUD-managed deploy should
+track the floating `0.1` tag, or an exact `0.1.2`.
 
 ```sh
-docker compose pull            # uses SHION_TAG, defaults to the floating tag
-SHION_TAG=0.1.2 docker compose pull
+docker compose pull                 # uses SHION_TAG, defaults to the floating tag
+SHION_TAG=0.1.2 docker compose pull # exact pin
+SHION_TAG=latest docker compose pull # newest release
 ```
 
 To make a release, merge to `main` with

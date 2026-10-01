@@ -89,7 +89,7 @@ to this repository with Contents and Pull requests at read/write. This is also w
 — abandoned in 2021 partly over npm 2FA and CI auth — is not simply being revived: the auth
 model has to be right this time.
 
-## Versioned tags, and no `latest`
+## Versioned tags, and a `latest` you don't deploy from
 
 Per release, Docker Hub receives:
 
@@ -97,13 +97,20 @@ Per release, Docker Hub receives:
 | ------- | ------- | ------------------------------------------------ |
 | `0.1.2` | No      | Immutable record; exact pin.                     |
 | `0.1`   | Yes     | Tracks newest `0.1.x`; the tag a watcher follows.|
+| `latest`| Yes     | Tracks newest release; ad-hoc testing only.      |
 | `sha-…` | No      | Reproducible build reference.                    |
 
-There is no `latest`. The deployed container is managed by WUD (What's Up Docker), which
-watches a container's configured tag and compares it against the registry — so what it needs
-is a *versioned* tag that moves, which `{{major}}.{{minor}}` is. A floating `latest` would also
-work, and would also make "which version is running?" unanswerable by looking at the registry.
-The floating minor tag carries the version identity and still moves on release.
+`latest` is published, and is not to be deployed from. It exists so a build can be tried without
+picking a version, and it costs nothing: `docker/metadata-action`'s default `flavor: latest=auto`
+emits it whenever a `type=semver` tag fires, so allowing it is a matter of not overriding the
+default. What matters is that the *deployed* container is never pinned to it. WUD watches a
+container's configured tag and compares it against the registry, so a deploy should track the
+floating `{{major}}.{{minor}}` tag or an exact `X.Y.Z` — either carries version identity in the
+registry. A `latest` deploy answers "which version is running?" with a shrug.
+
+This was decided the other way round first: an attempt to suppress `latest` with
+`flavor: latest=false` was reverted once it was clear the convenience was worth more than the
+tidiness. The distinction being recorded is between *publishing* `latest` and *deploying* it.
 
 ## Consequences
 
@@ -135,4 +142,6 @@ The floating minor tag carries the version identity and still moves on release.
   recorded cause was npm 2FA blocking CI publishes. The constraint is gone, but re-adopting it
   re-litigates a settled decision for no gain over release-please.
 - **Tag on merge to `main`.** Rejected — see `Koa-API-Template` above.
-- **Publish `latest`.** Rejected — see "Versioned tags, and no `latest`" above.
+- **Suppress `latest` with `flavor: latest=false`.** Implemented, then reverted. It cost a
+  suppression block to defend a rule that only mattered for deploys, and `latest` earns its keep
+  for ad-hoc testing. The rule that matters is narrower: do not *deploy* it.
