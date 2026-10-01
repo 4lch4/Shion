@@ -1,5 +1,6 @@
 services:
   bot:
+    image: 4lch4/shion-bot:${SHION_TAG:-0.0}
     build:
       context: .
       dockerfile: Dockerfile
@@ -11,6 +12,7 @@ services:
     restart: unless-stopped
 
   register-commands:
+    image: 4lch4/shion-bot:${SHION_TAG:-0.0}
     build:
       context: .
       dockerfile: Dockerfile

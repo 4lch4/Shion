@@ -1,7 +1,11 @@
 {
   "name": "shion",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "private": true,
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:4lch4/Shion.git"
+  },
   "type": "module",
   "scripts": {
     "check": "biome ci .",

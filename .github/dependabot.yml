@@ -1,0 +1,19 @@
+version: 2
+updates:
+  # Update dependencies of the GitHub Actions used in .github/workflows.
+  - package-ecosystem: 'github-actions'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+    groups:
+      actions:
+        patterns: ['*']
+
+  # Update dependencies from bun.lock.
+  - package-ecosystem: 'bun'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+    groups:
+      deps:
+        patterns: ['*']

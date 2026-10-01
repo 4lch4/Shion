@@ -158,6 +158,29 @@ docker compose down
 The Compose services read secrets from the local `.env` file. The `bot` service publishes `API_PORT`
 on the host so callers outside the container can reach the API.
 
+## Releases
+
+Shion is pre-1.0, so the API contract may change in a minor release.
+
+Images are published to Docker Hub as `4lch4/shion-bot`. Each release produces three tags:
+
+| Tag      | Mutable | Use                                              |
+| -------- | ------- | ------------------------------------------------ |
+| `0.1.2`  | No      | Exact pin, or an immutable record of a release. |
+| `0.1`    | Yes     | Tracks the newest `0.1.x`. Use for auto-updating. |
+| `sha-…`  | No      | Reproducible build reference.                    |
+
+There is no `latest` tag. Pull the exact release you want:
+
+```sh
+docker compose pull            # uses SHION_TAG, defaults to the floating tag
+SHION_TAG=0.1.2 docker compose pull
+```
+
+To make a release, merge to `main` with
+[Conventional Commits](https://www.conventionalcommits.org/) messages. release-please then maintains an open
+`chore(main): release X.Y.Z` PR; merging that PR is what tags and publishes. Nothing ships until you merge it.
+
 ## Quality checks
 
 ```sh
