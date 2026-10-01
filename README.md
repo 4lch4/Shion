@@ -1,6 +1,6 @@
 # Shion
 
-Shion is a Discord Gateway and a personal Software/DevOps/Site Reliability Engineering learning
+Shion is my "Discord Gateway" and a personal Software/DevOps/Site Reliability Engineering learning
 project.
 
 Anything that can make an HTTP request — an AI agent, a script, a scheduled task, a service on
