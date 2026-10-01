@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.1](https://github.com/4lch4/Shion/compare/v0.1.0...v0.1.1) (2026-10-01)
+
+
+### Bug Fixes
+
+* **ci:** stop publishing latest on release ([957f279](https://github.com/4lch4/Shion/commit/957f279e926bc9ee3d006083e16e5ab834016a50))
+
 ## [0.1.0](https://github.com/4lch4/Shion/compare/v0.0.1...v0.1.0) (2026-10-01)
 
 
