@@ -28,11 +28,6 @@ jobs:
         with:
           images: |
             4lch4/shion-bot
-          # latest=auto would publish `latest` on every semver tag. The floating
-          # {{major}}.{{minor}} tag is what WUD watches; `latest` would make the
-          # deployed version unanswerable from the registry.
-          flavor: |
-            latest=false
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
