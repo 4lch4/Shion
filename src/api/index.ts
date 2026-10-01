@@ -1,5 +1,6 @@
 import { swagger } from '@elysiajs/swagger'
 import { Elysia } from 'elysia'
+import pkg from '../../package.json'
 import type { GatewayStatus } from '../bot'
 import type { Deliver } from '../delivery'
 import { digestToken, isAuthorized, unauthorizedResponse } from './auth'
@@ -23,7 +24,7 @@ export function buildApi({ deliver, gateway, apiToken }: ApiOptions) {
         documentation: {
           info: {
             title: 'Shion',
-            version: '0.0.1',
+            version: pkg.version,
             description:
               'Shion is a Discord Gateway. Anything that can make an HTTP request hands it a Message, and Shion delivers that Message to one Recipient by Discord DM.',
           },
