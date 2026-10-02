@@ -1,18 +1,40 @@
 services:
   bot:
-    image: 4lch4/shion-bot:${SHION_TAG:-0.0}
+    image: 4lch4/shion-bot:${SHION_TAG:-0.1}
+    # `build:` is for local development. On the server there is no source, and
+    # Compose only reaches for the build context on an explicit `build` or
+    # `--build`, so this block is inert there and `up` pulls from the registry.
     build:
       context: .
       dockerfile: Dockerfile
     env_file:
       - .env
     ports:
-      - "${API_PORT:-3000}:${API_PORT:-3000}"
+      - "${API_HOST_PORT:-3300}:${API_PORT:-3000}"
     init: true
     restart: unless-stopped
+    labels:
+      # Three-part semver only. Excludes the floating `0.1`, `latest`,
+      # `sha-…` and `main` tags.
+      #
+      # Required, not decoration. Without it WUD considers `latest` a
+      # candidate; `latest` moves on every release, so WUD would report an
+      # update forever on a container already running the newest build.
+      #
+      # Deliberately not ^0\.1\.\d+$ — that would hide 0.2.0 permanently and
+      # Shion would quietly stop updating at the next minor release.
+      #
+      # `\\d` because a double-quoted YAML string turns `\\` into `\`.
+      - "wud.tag.include=^\\d+\\.\\d+\\.\\d+$"
+
+      # Apply any semver bump. No notification channel is configured yet, so
+      # WUD's UI at :3000 is the only place an update is visible before it
+      # lands. To add one, append its trigger here and set its env var on the
+      # WUD container, e.g. `dockercompose.local:all,discord.local`.
+      - "wud.trigger.include=dockercompose.local:all"
 
   register-commands:
-    image: 4lch4/shion-bot:${SHION_TAG:-0.0}
+    image: 4lch4/shion-bot:${SHION_TAG:-0.1}
     build:
       context: .
       dockerfile: Dockerfile

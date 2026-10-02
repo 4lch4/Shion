@@ -172,8 +172,8 @@ Images are published to Docker Hub as `4lch4/shion-bot`. Each release produces f
 | `sha-…`  | No      | Reproducible build reference.                    |
 
 `latest` is a convenience for trying the newest build. Do not deploy from it: it carries no version
-information, so "which version is running?" has no answer in the registry. A WUD-managed deploy should
-track the floating `0.1` tag, or an exact `0.1.2`.
+information, so "which version is running?" has no answer in the registry. A deployed container
+should track an exact version — see [Deployment](#deployment).
 
 ```sh
 docker compose pull                 # uses SHION_TAG, defaults to the floating tag
@@ -184,6 +184,70 @@ SHION_TAG=latest docker compose pull # newest release
 To make a release, merge to `main` with
 [Conventional Commits](https://www.conventionalcommits.org/) messages. release-please then maintains an open
 `chore(main): release X.Y.Z` PR; merging that PR is what tags and publishes. Nothing ships until you merge it.
+
+## Deployment
+
+The same `compose.yaml` runs locally and on a server. Copy it, place a `.env` alongside it, and
+start the Gateway:
+
+```sh
+docker compose up -d bot
+```
+
+On a fresh host, register the Discord commands once:
+
+```sh
+docker compose --profile setup run --rm register-commands
+```
+
+Ports are set independently: `API_HOST_PORT` is what the host publishes (`3300`), `API_PORT` is
+what the process binds inside the container (`3000`).
+
+```sh
+API_HOST_PORT=8080 docker compose up -d bot   # publish on 8080 instead
+```
+
+### Automatic updates
+
+On the server, [WUD][wud] (What's Up Docker) watches the container and applies new releases on its
+own — roughly hourly. `compose.yaml` carries the labels it reads: `wud.tag.include` restricts
+candidates to three-part semver tags, and `wud.trigger.include` says to apply them.
+
+Two consequences:
+
+- **The server's copy of `compose.yaml` belongs to WUD.** It rewrites the `image:` tag on every
+  update, so `${SHION_TAG}` stops having any effect there. Re-copy from the repository to make a
+  structural change, and do not sync the server's copy back to git.
+- **Updates are silent.** No notification channel is configured, so a minor release — which may
+  break callers, since Shion is pre-1.0 — lands unattended. WUD's own UI on port `3000` is the
+  only place a pending update is visible. Adding a channel is one environment variable on the WUD
+  container plus its name appended to `wud.trigger.include`.
+
+WUD itself needs the docker socket read-write, and this directory mounted into it:
+
+```yaml
+services:
+  whatsupdocker:
+    image: getwud/wud:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - WUD_AUTH_ADMIN_USER=admin
+      - WUD_AUTH_ADMIN_PASSWORD=<strong-password>
+      - WUD_TRIGGER_DOCKERCOMPOSE_LOCAL_FILE=/stacks/shion/compose.yaml
+      - WUD_TRIGGER_DOCKERCOMPOSE_LOCAL_BACKUP=true
+      - WUD_TRIGGER_DOCKERCOMPOSE_LOCAL_PRUNE=true
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /opt/stacks/shion:/stacks/shion
+    restart: unless-stopped
+```
+
+`WUD_TRIGGER_DOCKERCOMPOSE_LOCAL_FILE` is a path *inside WUD*, not on the host — the mount is
+required, and the docker socket must not be `:ro` because WUD recreates containers. The image is
+public, so no registry credentials are needed.
+
+[wud]: https://github.com/getwud/wud
 
 ## Quality checks
 

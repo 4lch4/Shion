@@ -103,10 +103,43 @@ Per release, Docker Hub receives:
 `latest` is published, and is not to be deployed from. It exists so a build can be tried without
 picking a version, and it costs nothing: `docker/metadata-action`'s default `flavor: latest=auto`
 emits it whenever a `type=semver` tag fires, so allowing it is a matter of not overriding the
-default. What matters is that the *deployed* container is never pinned to it. WUD watches a
-container's configured tag and compares it against the registry, so a deploy should track the
-floating `{{major}}.{{minor}}` tag or an exact `X.Y.Z` — either carries version identity in the
-registry. A `latest` deploy answers "which version is running?" with a shrug.
+default. What matters is that the *deployed* container is never pinned to it. A `latest` deploy
+answers "which version is running?" with a shrug.
+
+### A deployed container pins an exact tag, not a floating one
+
+The deployed container tracks a specific `X.Y.Z`, never `0.1` and never `latest`. WUD takes the
+container's current tag, lists the registry's tags, and semver-compares them; pinning an exact
+version is what puts it in that mode. A floating tag has no meaningful "newer version", so WUD
+falls back to polling whether the digest moved — the degraded path, where the UI reports a
+changed digest rather than a version. The floating `0.1` tag is for a human running
+`docker compose pull` by hand; the deployed container gets a real version number in the registry.
+
+An earlier draft of this ADR said a WUD deploy should track the floating `{{major}}.{{minor}}`
+tag. That was wrong on both counts, and testing showed it: with the container on `0.1`, WUD
+cannot tell you it moved from `0.1.0` to `0.1.1`, and a threshold on a floating tag has nothing
+meaningful to compare.
+
+### `wud.tag.include` must be broad enough to see the next minor
+
+`wud.tag.include=^\d+\.\d+\.\d+$` accepts any three-part semver and excludes everything else.
+Scoped tighter, to `^0\.1\.\d+$`, it would reject `0.2.0` outright — WUD would never report the
+release and Shion would sit on `0.1.x` indefinitely, with no error anywhere.
+
+The regex is load-bearing in the other direction too. Without it, `latest` is a candidate, and
+because `latest` moves on every release, WUD would report an available update forever on a
+container already running the newest build.
+
+### There is no notification channel yet
+
+WUD applies any semver bump with `dockercompose.local:all`, and nothing announces it. A minor
+release therefore lands unattended, which is a real cost while the API contract is pre-1.0 and a
+minor release may break callers. It was chosen over a patch/minor threshold split because a
+threshold with no notification channel has nowhere to send minor and major: they would be
+detected and silently dropped, which is worse than applying them.
+
+The WUD web UI is the only status surface for now. Adding a channel is one env var on the WUD
+container plus its name appended to `wud.trigger.include`.
 
 This was decided the other way round first: an attempt to suppress `latest` with
 `flavor: latest=false` was reverted once it was clear the convenience was worth more than the
@@ -127,6 +160,10 @@ tidiness. The distinction being recorded is between *publishing* `latest` and *d
 - CI runs on `pull_request` and on pushes to `main`, and builds the Docker image but pushes
   nothing. Publishing happens only in `release.yml`, on a tag.
 - The published image is multi-arch (`linux/amd64,linux/arm64`) for the first time.
+- The server's `compose.yaml` is WUD's to rewrite: it replaces the `image:` tag on every
+  update, so `${SHION_TAG}` stops having effect there. Re-copy from the repository to make
+  structural changes; do not sync the server's copy back.
+- Minor and major releases apply unattended until a notification channel is added.
 - Branch protection on `main` is still worth adding, but is sequenced after this lands. A
   required check configured incorrectly during bootstrap can lock the owner out.
 
@@ -145,3 +182,8 @@ tidiness. The distinction being recorded is between *publishing* `latest` and *d
 - **Suppress `latest` with `flavor: latest=false`.** Implemented, then reverted. It cost a
   suppression block to defend a rule that only mattered for deploys, and `latest` earns its keep
   for ad-hoc testing. The rule that matters is narrower: do not *deploy* it.
+- **A deployed container tracking the floating `{{major}}.{{minor}}` tag.** Superseded; see
+  "A deployed container pins an exact tag" above.
+- **Patch/minor threshold split with a notification channel.** The intended design. Deferred
+  because the channel is not set up yet, and a threshold with nowhere to send minor and major
+  drops them silently. `dockercompose.local:all` applies them instead.
