@@ -187,8 +187,9 @@ To make a release, merge to `main` with
 
 ## Deployment
 
-The same `compose.yaml` runs locally and on a server. Copy it, place a `.env` alongside it, and
-start the Gateway:
+The same `compose.yaml` runs locally and on a server. Copy it to
+`/mnt/volume_apps/apps/shion` on the Docker host, place a `.env` alongside it, and start the
+Gateway:
 
 ```sh
 docker compose up -d bot
@@ -223,7 +224,8 @@ Two consequences:
   only place a pending update is visible. Adding a channel is one environment variable on the WUD
   container plus its name appended to `wud.trigger.include`.
 
-WUD itself needs the docker socket read-write, and this directory mounted into it:
+WUD itself needs the docker socket read-write, and the directory holding `compose.yaml` and
+`.env` mounted into it. Put both in `/mnt/volume_apps/apps/shion` on the Docker host:
 
 ```yaml
 services:
@@ -239,7 +241,7 @@ services:
       - WUD_TRIGGER_DOCKERCOMPOSE_LOCAL_PRUNE=true
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - /opt/stacks/shion:/stacks/shion
+      - /mnt/volume_apps/apps/shion:/stacks/shion
     restart: unless-stopped
 ```
 
