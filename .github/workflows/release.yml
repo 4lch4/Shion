@@ -1,7 +1,8 @@
 name: Release
 
-# Publishes an image when release-please tags a release. Merging the release PR is
-# what triggers this: release-please pushes the tag, the tag push lands here.
+# Publishes an image when release-please tags a release, then deploys it to
+# AICGEN00 (see deploy.yml). Merging the release PR is what triggers this:
+# release-please pushes the tag, the tag push lands here.
 #
 # Requires secrets.RELEASE_PLEASE_TOKEN (a PAT, not GITHUB_TOKEN) in the
 # release-please workflow. Tags created with GITHUB_TOKEN do not trigger workflows,
@@ -18,9 +19,16 @@ jobs:
   publish:
     name: Publish Image
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+
+      # v0.2.0 -> 0.2.0, the exact tag deploy.yml pins on the server.
+      - name: Read the version
+        id: version
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
 
       - name: Setup Docker metadata
         id: meta
@@ -49,3 +57,11 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+
+  deploy:
+    name: Deploy
+    needs: publish
+    uses: ./.github/workflows/deploy.yml
+    with:
+      version: ${{ needs.publish.outputs.version }}
+    secrets: inherit
