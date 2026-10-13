@@ -74,12 +74,14 @@ not bind its port until the bot has finished connecting to Discord, so a caller 
 
 Every `/v1` route requires `Authorization: Bearer <API_TOKEN>`. The token is compared against a
 SHA-256 digest using a constant-time comparison. `GET /docs` and `GET /docs/json` are open so the
-Swagger UI loads; use the **Authorize** button to supply the token.
+Swagger UI loads; use the **Authorize** button to supply the token. `GET /health` is open too, for
+healthchecks.
 
 | Route                | Purpose                                                     |
 | -------------------- | ----------------------------------------------------------- |
 | `POST /v1/messages`  | Deliver a Message to the Recipient                           |
 | `GET /v1/status`     | Gateway readiness and Message counters                       |
+| `GET /health`        | Readiness only, no token (healthchecks)                      |
 | `GET /docs`          | Swagger UI                                                   |
 | `GET /docs/json`     | OpenAPI specification                                        |
 
@@ -176,80 +178,71 @@ information, so "which version is running?" has no answer in the registry. A dep
 should track an exact version — see [Deployment](#deployment).
 
 ```sh
-docker compose pull                 # uses SHION_TAG, defaults to the floating tag
-SHION_TAG=0.1.2 docker compose pull # exact pin
-SHION_TAG=latest docker compose pull # newest release
+docker compose pull                  # uses IMAGE_TAG, defaults to the floating tag
+IMAGE_TAG=0.1.2 docker compose pull  # exact pin
+IMAGE_TAG=latest docker compose pull # newest release
 ```
 
 To make a release, merge to `main` with
-[Conventional Commits](https://www.conventionalcommits.org/) messages. release-please then maintains an open
-`chore(main): release X.Y.Z` PR; merging that PR is what tags and publishes. Nothing ships until you merge it.
+[Conventional Commits](https://www.conventionalcommits.org/) messages. release-please then
+maintains an open `chore(main): release X.Y.Z` PR; merging that PR is what tags, publishes and
+deploys. Nothing ships until you merge it.
 
 ## Deployment
 
-The same `compose.yaml` runs locally and on a server. Copy it to
-`/mnt/volume_apps/apps/shion` on the Docker host, place a `.env` alongside it, and start the
-Gateway:
+Shion runs on AICGEN00 and is reachable over the tailnet at `http://aicgen00:3300`. Merging a
+Release PR deploys it:
+
+1. release-please tags `vX.Y.Z`, and `release.yml` pushes the image to Docker Hub.
+2. `release.yml` then calls `deploy.yml`, which joins the tailnet as `tag:ci` and runs
+   `ssh deploy@aicgen00 "shion X.Y.Z"` over Tailscale SSH.
+3. On the server, `deploy-app` pulls `4lch4/shion-bot:X.Y.Z`, restarts the Gateway and waits up to
+   90 seconds for `/health`. If it never turns healthy, it rolls back to the previous version.
+4. The workflow sends the result to Shion as a Message, so the Recipient hears about every deploy.
+   A failed one is reported too, as long as the rollback left Shion running to receive it.
+
+The `deploy` user's login shell only accepts `<app> <version>`, so the runner can deploy and
+nothing else. `deploy-app` and `deploy-shell` live in the private `4lch4/Infrastructure` repo
+under `server/`; the setup is in the [Deploy-Methods guide][deploy-guide].
+
+[deploy-guide]: https://github.com/4lch4/Deploy-Methods/tree/main/methods/docker-ssh-tailscale
+
+### Redeploy or roll back
+
+Run **Deploy** from the Actions tab and enter a version. An older version is a rollback. On the
+server itself, the same thing is:
 
 ```sh
-docker compose up -d bot
+sudo -u deploy deploy-app shion 0.2.0
+```
+
+### On the server
+
+`compose.yaml` and `.env` live in `/mnt/volume_apps/apps/shion`, owned by root so a deploy
+can't change them; only `.current-tag` belongs to `deploy`. The server's
+`compose.yaml` is a plain copy of this repository's: copy it again after changing it here. Nothing
+on the server rewrites it. `deploy-app` sets `IMAGE_TAG` and records the running version in
+`.current-tag`, so to run Compose by hand there:
+
+```sh
+cd /mnt/volume_apps/apps/shion
+IMAGE_TAG="$(cat .current-tag)" docker compose logs -f bot
 ```
 
 On a fresh host, register the Discord commands once:
 
 ```sh
-docker compose --profile setup run --rm register-commands
+IMAGE_TAG="$(cat .current-tag)" docker compose --profile setup run --rm register-commands
 ```
 
 Ports are set independently: `API_HOST_PORT` is what the host publishes (`3300`), `API_PORT` is
 what the process binds inside the container (`3000`).
 
-```sh
-API_HOST_PORT=8080 docker compose up -d bot   # publish on 8080 instead
-```
+### Health
 
-### Automatic updates
-
-On the server, [WUD][wud] (What's Up Docker) watches the container and applies new releases on its
-own — roughly hourly. `compose.yaml` carries the labels it reads: `wud.tag.include` restricts
-candidates to three-part semver tags, and `wud.trigger.include` says to apply them.
-
-Two consequences:
-
-- **The server's copy of `compose.yaml` belongs to WUD.** It rewrites the `image:` tag on every
-  update, so `${SHION_TAG}` stops having any effect there. Re-copy from the repository to make a
-  structural change, and do not sync the server's copy back to git.
-- **Updates are silent.** No notification channel is configured, so a minor release — which may
-  break callers, since Shion is pre-1.0 — lands unattended. WUD's own UI on port `3000` is the
-  only place a pending update is visible. Adding a channel is one environment variable on the WUD
-  container plus its name appended to `wud.trigger.include`.
-
-WUD itself needs the docker socket read-write, and the directory holding `compose.yaml` and
-`.env` mounted into it. Put both in `/mnt/volume_apps/apps/shion` on the Docker host:
-
-```yaml
-services:
-  whatsupdocker:
-    image: getwud/wud:latest
-    ports:
-      - "3000:3000"
-    environment:
-      - WUD_AUTH_ADMIN_USER=admin
-      - WUD_AUTH_ADMIN_PASSWORD=<strong-password>
-      - WUD_TRIGGER_DOCKERCOMPOSE_LOCAL_FILE=/stacks/shion/compose.yaml
-      - WUD_TRIGGER_DOCKERCOMPOSE_LOCAL_BACKUP=true
-      - WUD_TRIGGER_DOCKERCOMPOSE_LOCAL_PRUNE=true
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - /mnt/volume_apps/apps/shion:/stacks/shion
-    restart: unless-stopped
-```
-
-`WUD_TRIGGER_DOCKERCOMPOSE_LOCAL_FILE` is a path *inside WUD*, not on the host — the mount is
-required, and the docker socket must not be `:ro` because WUD recreates containers. The image is
-public, so no registry credentials are needed.
-
-[wud]: https://github.com/getwud/wud
+`GET /health` needs no token. It returns `200 {"status":"ready"}` while the Discord connection is
+up and `503 {"status":"degraded"}` when it drops. The Compose healthcheck calls it with Bun, since
+the image has no curl or wget.
 
 ## Quality checks
 
