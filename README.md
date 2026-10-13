@@ -218,7 +218,8 @@ sudo -u deploy deploy-app shion 0.2.0
 
 ### On the server
 
-`compose.yaml` and `.env` live in `/mnt/volume_apps/apps/shion`, owned by `deploy`. The server's
+`compose.yaml` and `.env` live in `/mnt/volume_apps/apps/shion`, owned by root so a deploy
+can't change them; only `.current-tag` belongs to `deploy`. The server's
 `compose.yaml` is a plain copy of this repository's: copy it again after changing it here. Nothing
 on the server rewrites it. `deploy-app` sets `IMAGE_TAG` and records the running version in
 `.current-tag`, so to run Compose by hand there:

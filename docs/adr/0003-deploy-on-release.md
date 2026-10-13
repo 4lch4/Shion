@@ -57,6 +57,9 @@ AICGEN00 over Tailscale SSH.**
 - AICGEN00 must carry a Tailscale tag (`tag:server`), because Tailscale SSH rules can only name a
   tagged node as the destination for a tagged source. A tagged node is no longer owned by a user,
   so the owner's own SSH access needs its own rule.
+- `deploy`'s files on the server stay root-owned except `.current-tag`. If Tailscale SSH cannot
+  use `su`, it serves SFTP without the login shell; root-owned files mean CI still cannot rewrite
+  `compose.yaml` and turn a deploy into root access.
 - `/health` is open. It reports readiness and nothing else.
 - Rolling back to a version older than 0.2.0 deploys it but it reports unhealthy, because those
   versions have no `/health`. `deploy-app` only rolls back to what was running before, so this
