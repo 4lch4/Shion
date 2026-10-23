@@ -24,3 +24,6 @@ pnpm-debug.log*
 .DS_Store
 
 archive/
+
+# X watcher state when run locally
+data/

@@ -16,7 +16,11 @@ export interface GatewayConfig extends DiscordConfig {
 const defaultApiPort = 3000
 const defaultApiHost = '0.0.0.0'
 
-function requireValue(environment: Environment, names: readonly string[], label: string): string {
+export function requireValue(
+  environment: Environment,
+  names: readonly string[],
+  label: string,
+): string {
   const value = optionalValue(environment, names)
 
   if (value !== undefined) {
@@ -26,7 +30,10 @@ function requireValue(environment: Environment, names: readonly string[], label:
   throw new Error(`Missing ${label}; set ${names[0]}.`)
 }
 
-function optionalValue(environment: Environment, names: readonly string[]): string | undefined {
+export function optionalValue(
+  environment: Environment,
+  names: readonly string[],
+): string | undefined {
   for (const name of names) {
     const value = environment[name]?.trim()
 
