@@ -24,3 +24,6 @@ pnpm-debug.log*
 .DS_Store
 
 archive/
+
+# OpenCode watcher state and heartbeat when run locally
+packages/opencode-watcher/data/

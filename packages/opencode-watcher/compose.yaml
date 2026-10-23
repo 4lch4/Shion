@@ -1,0 +1,57 @@
+# This Compose project is one app on the server, `opencode-watcher`, deployed on its own with
+# `deploy-app opencode-watcher <version>`. It is not part of Shion's project: the watcher reaches
+# the Gateway over the shared `shion` network, which exists before either starts.
+services:
+  opencode-watcher:
+    # IMAGE_TAG is set by `deploy-app` on the server, which pins an exact
+    # release (e.g. 0.1.0). The floating `0.1` default is for running by hand.
+    image: 4lch4/shion-opencode-watcher:${IMAGE_TAG:-0.1}
+    # `build:` is for local development. On the server there is no source, and
+    # Compose only reaches for the build context on an explicit `build` or
+    # `--build`, so this block is inert there and `up` pulls from the registry.
+    build:
+      context: ../..
+      dockerfile: packages/opencode-watcher/Dockerfile
+    env_file:
+      - .env
+    environment:
+      # The Gateway's alias on the shared network, so a service called `bot` in
+      # another project can't take its place in DNS.
+      SHION_URL: http://shion-gateway:3000
+      # The catalog as of the last Message delivered. The heartbeat keeps its
+      # default at /app/data/heartbeat.
+      OPENCODE_WATCHER_STATE_FILE: /app/data/opencode-watcher.json
+    volumes:
+      # The catalog as of the last Message delivered, and the heartbeat the
+      # healthcheck reads. `docker compose down -v` deletes both.
+      - data:/app/data
+    networks:
+      - shion
+    init: true
+    restart: unless-stopped
+    healthcheck:
+      # A Watcher has no HTTP server, so the image has no endpoint to check:
+      # the heartbeat file's age stands in for it. The image has no curl, so Bun
+      # reads the file. The limit is twice the poll interval plus a minute, so a
+      # slow poll or an outage at OpenCode doesn't fail a good deploy.
+      test:
+        - CMD
+        - bun
+        - -e
+        - "const limit = (Number(process.env.OPENCODE_WATCHER_POLL_INTERVAL_SECONDS || 300) * 2 + 60) * 1000; Bun.file(process.env.OPENCODE_WATCHER_HEARTBEAT_FILE || '/app/data/heartbeat').stat().then(stat => process.exit(Date.now() - stat.mtimeMs <= limit ? 0 : 1), () => process.exit(1))"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      # The heartbeat is written before the first poll, so `--wait` passes well
+      # inside `deploy-app`'s 90-second timeout.
+      start_period: 60s
+      start_interval: 2s
+
+volumes:
+  data:
+
+networks:
+  # Created once on the server, because `docker compose down` in Shion's project
+  # would fail while a Watcher was attached to a network it owned.
+  shion:
+    external: true
