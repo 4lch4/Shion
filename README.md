@@ -255,6 +255,11 @@ bun test
 Biome is the formatter and linter. Husky runs lint-staged, typechecking, and tests from the pre-commit
 hook.
 
+Bun is pinned in `.bun-version`, the three `FROM oven/bun:` lines in the `Dockerfile`, and
+`packageManager` / `engines.bun` in `package.json`. Dependabot's `docker` ecosystem only rewrites the
+`FROM` lines, so `bun run check:bun-version` fails when the pins disagree. CI runs it as the **Bun
+version pins** job, which means a base-image PR stays red until the other pins are bumped with it.
+
 ## Configuration
 
 | Variable                                                              | Required | Default     |

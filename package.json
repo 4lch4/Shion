@@ -9,6 +9,7 @@
   "type": "module",
   "scripts": {
     "check": "biome ci .",
+    "check:bun-version": "bun run scripts/check-bun-version.ts",
     "deploy:commands": "bun run src/deploy-commands.ts",
     "dev": "bun --watch src/index.ts",
     "format": "biome format --write .",
