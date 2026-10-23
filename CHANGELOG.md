@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/4lch4/Shion/compare/v0.2.0...v0.2.1) (2026-10-23)
+
+
+### Bug Fixes
+
+* **deps:** bump Bun to 1.4.4 for the eMudhra CA trust fix ([e722cbf](https://github.com/4lch4/Shion/commit/e722cbf7bd109f9712471619f630674eb70cd465))
+
 ## [0.2.0](https://github.com/4lch4/Shion/compare/v0.1.1...v0.2.0) (2026-10-23)
 
 
