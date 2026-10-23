@@ -74,8 +74,8 @@ not bind its port until the bot has finished connecting to Discord, so a caller 
 
 Every `/v1` route requires `Authorization: Bearer <API_TOKEN>`. The token is compared against a
 SHA-256 digest using a constant-time comparison. `GET /docs` and `GET /docs/json` are open so the
-Swagger UI loads; use the **Authorize** button to supply the token. `GET /health` is open too, for
-healthchecks.
+Swagger UI, served by `@elysia/openapi`, can load; use the **Authorize** button to supply the token.
+`GET /health` is open too, for healthchecks.
 
 | Route                | Purpose                                                     |
 | -------------------- | ----------------------------------------------------------- |
