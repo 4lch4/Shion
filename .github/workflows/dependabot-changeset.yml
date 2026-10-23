@@ -36,7 +36,12 @@ concurrency:
 jobs:
   changeset:
     name: Add a changeset
-    if: github.actor == 'dependabot[bot]'
+    # Both checks: the pull request must be Dependabot's, and so must the push
+    # that triggered this run. A person pushing to a Dependabot branch makes
+    # them the actor, and then nothing here runs with the PAT.
+    if: >-
+      github.event.pull_request.user.login == 'dependabot[bot]' &&
+      github.actor == 'dependabot[bot]'
     runs-on: ubuntu-latest
     steps:
       # Checked out with the PAT, which is what lets the last step push.
