@@ -51,4 +51,4 @@ jobs:
         run: bun test
 
       - name: Build Docker image
-        run: docker build --tag shion-ci .
+        run: docker build --file packages/gateway/Dockerfile --tag shion-ci .
