@@ -1,4 +1,4 @@
-import { swagger } from '@elysiajs/swagger'
+import { openapi } from '@elysia/openapi'
 import { Elysia } from 'elysia'
 import pkg from '../../package.json'
 import type { GatewayStatus } from '../bot'
@@ -21,7 +21,7 @@ export function buildApi({ deliver, gateway, apiToken }: ApiOptions) {
 
   return new Elysia()
     .use(
-      swagger({
+      openapi({
         documentation: {
           info: {
             title: 'Shion',

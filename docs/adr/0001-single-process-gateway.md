@@ -4,6 +4,10 @@ Status: accepted
 
 Date: 2026-09-30
 
+Revised: 2026-10-23 — `@elysiajs/swagger` was replaced by `@elysia/openapi`. The `.group('/v1')`
+decision is unchanged, but its recorded reason is now the public URL surface rather than that
+plugin's prefix bug; see "Routes use `.group('/v1')`" below.
+
 ## Context
 
 Shion has two faces: a Discord bot and an HTTP API. `CONTEXT.md` is explicit that these are "two
@@ -14,7 +18,7 @@ The obvious way to get that ordering across two deployable units is to split the
 services and coordinate them with a Compose healthcheck or an orchestrator readiness probe. The
 alternative is to run both in one process and not bind the port until the bot is ready.
 
-We also wanted browsable OpenAPI docs from `@elysiajs/swagger`, and the API had to live under a
+We also wanted browsable OpenAPI docs from `@elysia/openapi`, and the API had to live under a
 `/v1` prefix.
 
 ## Decision
@@ -53,13 +57,22 @@ the caller exactly what went wrong without a log dive.
 
 ### Routes use `.group('/v1')`, not `new Elysia({ prefix: '/v1' })`
 
-Both produce the same URLs. We use `.group()` because the instance-level `prefix` option breaks the
-Swagger plugin: the plugin registers the JSON spec under the prefix but the UI requests it from the
-root, so `/docs` renders a blank page. This is a long-standing open bug —
+Both produce the same URLs for the API routes, but the instance-level prefix moves every route on
+that instance, including `/docs`, `/docs/json` and `/health`. Those three are public and
+unprefixed, so the prefix goes on a group and the docs plugin and health route stay on an
+unprefixed root instance.
+
+The original reason was narrower. With the old `@elysiajs/swagger` plugin, an instance-level prefix
+registered the JSON spec under the prefix while the UI asked for it at the root, so `/docs` rendered
+a blank page. This is a long-standing bug —
 [elysia#183](https://github.com/elysiajs/elysia/issues/183),
 [#151](https://github.com/elysiajs/elysia/issues/151),
-[#162](https://github.com/elysiajs/elysia/issues/162) — with an incomplete fix history. Mounting
-docs on an unprefixed root instance sidesteps it entirely and keeps the public URL surface identical.
+[#162](https://github.com/elysiajs/elysia/issues/162) — with an incomplete fix history.
+`@elysia/openapi`, which replaced that plugin on 2026-10-23, renders the page against the relative
+spec path (`"url":"docs/json"`), so it follows the prefix instead of breaking: with
+`prefix: '/v1'`, `/v1/docs` and `/v1/docs/json` both answer `200`, while `/docs` is gone. That
+removes the plugin as a reason to avoid the instance prefix, but `.group()` stays because it is what
+keeps the three public URLs where they are.
 
 ## Consequences
 
@@ -86,6 +99,7 @@ docs on an unprefixed root instance sidesteps it entirely and keeps the public U
   invents queue semantics — retry policy, backpressure, persistence across restart, and a fourth
   outcome that is neither delivery nor reported failure. That directly contradicts
   `CONTEXT.md`, and none of it is needed while Shion serves one person.
-- **`new Elysia({ prefix: '/v1' })` with the Swagger bug worked around via explicit `specPath`.**
-  Rejected in favour of `.group()`: the workaround depends on the plugin internals that caused the
-  bug, and the fix history shows it regressing between releases.
+- **`new Elysia({ prefix: '/v1' })` with the old Swagger plugin's spec path worked around by hand.**
+  Rejected in favour of `.group()`: the workaround depended on plugin internals, and the fix history
+  shows it regressing between releases. `@elysia/openapi` removed the plugin's half of the problem,
+  but the instance prefix would still move `/docs`, `/docs/json` and `/health` under `/v1`.
