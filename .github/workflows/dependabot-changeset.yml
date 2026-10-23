@@ -1,0 +1,114 @@
+name: Dependabot Changeset
+
+# Adds a patch changeset to every Dependabot pull request, so a dependency or
+# base-image update, including a Bun security fix, releases when it merges.
+# Without it the update sits unreleased until something else releases the
+# package.
+#
+# The packages it patches are the ones with files changed under packages/. A
+# root-only change, such as bun.lock or a workflow, belongs to every package
+# that ships an image.
+#
+# This runs on pull_request_target, so it has the base repository's secrets for
+# a pull request from a fork. It must never run code from the pull request:
+# there is no install and no bunx here, only shell and jq reading
+# package.json. The workflow file comes from the base branch, so a pull
+# request cannot change what runs.
+#
+# The commit goes in with secrets.RELEASE_PLEASE_TOKEN so CI reruns on it.
+# Dependabot stops rebasing a pull request once anyone else has committed to
+# it, so a later conflict needs `@dependabot rebase` by hand rather than the
+# automatic rebase.
+on:
+  pull_request_target:
+    types:
+      - opened
+      - reopened
+      - synchronize
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dependabot-changeset-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  changeset:
+    name: Add a changeset
+    if: github.actor == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      # Checked out with the PAT, which is what lets the last step push.
+      - name: Checkout the pull request
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          fetch-depth: 0
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+
+      - name: Write the changeset
+        id: changeset
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+
+          path=".changeset/dependabot-$PR_NUMBER.md"
+
+          # A synchronize event after our own push lands here again.
+          if [[ -e "$path" ]]; then
+            echo 'skip=true' >> "$GITHUB_OUTPUT"
+            echo "$path already exists; nothing to do"
+            exit 0
+          fi
+
+          git fetch --no-tags origin "+refs/heads/$BASE_REF:refs/remotes/origin/$BASE_REF"
+          dirs="$(git diff --name-only "origin/$BASE_REF...HEAD" |
+            sed -n 's|^packages/\([^/]*\)/.*|\1|p' | sort -u)"
+
+          names=()
+          if [[ -n "$dirs" ]]; then
+            for dir in $dirs; do
+              manifest="packages/$dir/package.json"
+              [[ -f "$manifest" ]] || continue
+              name="$(jq -r '.name // empty' "$manifest")"
+              [[ -n "$name" ]] && names+=("$name")
+            done
+          else
+            for manifest in packages/*/package.json; do
+              name="$(jq -r 'select(.docker != null) | .name' "$manifest")"
+              [[ -n "$name" ]] && names+=("$name")
+            done
+          fi
+
+          if [[ ${#names[@]} -eq 0 ]]; then
+            echo 'skip=true' >> "$GITHUB_OUTPUT"
+            echo 'The pull request changes no package; skipping'
+            exit 0
+          fi
+
+          {
+            echo '---'
+            printf "'%s': patch\n" "${names[@]}"
+            echo '---'
+            echo
+            echo 'Updated dependencies.'
+          } > "$path"
+
+          echo 'skip=false' >> "$GITHUB_OUTPUT"
+          cat "$path"
+
+      - name: Commit and push
+        if: steps.changeset.outputs.skip == 'false'
+        env:
+          BRANCH: ${{ github.event.pull_request.head.ref }}
+        run: |
+          # A bot identity, not the token owner's: the PAT only grants the push.
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add .changeset
+          git commit -m 'chore: add a changeset for the dependency update'
+          git push origin "HEAD:$BRANCH"
