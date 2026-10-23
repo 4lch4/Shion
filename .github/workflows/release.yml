@@ -102,8 +102,9 @@ jobs:
         uses: docker/setup-buildx-action@v4
 
       # type=semver cannot parse a tag like shion@0.3.0, so the version from
-      # publishedPackages is passed explicitly. Each release gets X.Y.Z, X.Y,
-      # sha-… and latest, as ADR 2 describes; deploys pin X.Y.Z.
+      # the action's published-packages output is passed explicitly. Each
+      # release gets X.Y.Z, X.Y, sha-… and latest, as ADR 2 describes; deploys
+      # pin X.Y.Z.
       - name: Setup Docker metadata
         id: meta
         uses: docker/metadata-action@v6

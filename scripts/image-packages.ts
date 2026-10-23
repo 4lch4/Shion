@@ -152,7 +152,7 @@ async function main(): Promise<void> {
 
     case '--published':
       if (value === undefined) {
-        throw new Error(`--published needs the action's publishedPackages output\n\n${usage}`)
+        throw new Error(`--published needs the action's published-packages output\n\n${usage}`)
       }
       console.log(JSON.stringify(selectPublished(packages, parsePublished(value)), null, 2))
       return
