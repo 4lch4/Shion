@@ -15,6 +15,14 @@ services:
       - "${API_HOST_PORT:-3300}:${API_PORT:-3000}"
     init: true
     restart: unless-stopped
+    # Watchers run in their own Compose projects, so they reach the Gateway
+    # here, as http://shion-gateway:3000. The alias keeps another project's
+    # `bot` service from answering to the same name.
+    networks:
+      default: {}
+      shion:
+        aliases:
+          - shion-gateway
     healthcheck:
       # The image has no curl or wget, so Bun makes the request. /health is
       # 200 only while the Discord connection is up. `deploy-app` waits on
@@ -42,3 +50,12 @@ services:
     profiles:
       - setup
     restart: "no"
+
+# Created once on the server, as a provisioning step in 4lch4/Infrastructure
+# (`docker network create shion`), and once locally for Compose by hand. Never
+# by this file: `docker compose down` in shion would then fail while any
+# Watcher was attached, and a recreated network would cut running Watchers off
+# from the Gateway until they restarted.
+networks:
+  shion:
+    external: true
