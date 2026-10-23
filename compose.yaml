@@ -30,27 +30,25 @@ services:
       start_period: 60s
       start_interval: 2s
 
-  # A Source, not part of the Gateway: it polls X and hands each new post to
-  # the bot over the Compose network, like any other caller. Same image and
-  # IMAGE_TAG as the bot, so a release and `deploy-app` cover both. See
-  # docs/adr/0004-x-watcher.md.
-  x-watcher:
+  # A Source, not part of the Gateway: it polls which models OpenCode offers and
+  # hands each change to the bot over the Compose network, like any other
+  # caller. Same image and IMAGE_TAG as the bot, so a release and `deploy-app`
+  # cover both. See docs/adr/0004-opencode-watcher.md.
+  opencode-watcher:
     image: 4lch4/shion-bot:${IMAGE_TAG:-0.1}
     build:
       context: .
       dockerfile: Dockerfile
-    command: ["bun", "run", "src/x-watcher/index.ts"]
+    command: ["bun", "run", "src/opencode-watcher/index.ts"]
     # Only what the watcher needs, read from .env, rather than the bot's
     # Discord secrets too.
     environment:
       API_TOKEN: ${API_TOKEN:-}
-      X_BEARER_TOKEN: ${X_BEARER_TOKEN:-}
-      X_USERNAME: ${X_USERNAME:-}
-      X_POLL_INTERVAL_SECONDS: ${X_POLL_INTERVAL_SECONDS:-}
+      OPENCODE_WATCHER_POLL_INTERVAL_SECONDS: ${OPENCODE_WATCHER_POLL_INTERVAL_SECONDS:-}
       SHION_URL: http://bot:${API_PORT:-3000}
-      X_STATE_FILE: /app/data/x-watcher.json
+      OPENCODE_WATCHER_STATE_FILE: /app/data/opencode-watcher.json
     volumes:
-      - x-watcher-data:/app/data
+      - opencode-watcher-data:/app/data
     depends_on:
       bot:
         condition: service_healthy
@@ -71,7 +69,8 @@ services:
     restart: "no"
 
 volumes:
-  # The newest post already delivered. Keeps a restart or redeploy from
-  # re-sending old posts. `docker compose down -v` deletes it, and the next
-  # start then skips everything posted in between.
-  x-watcher-data:
+  # The model catalog as of the last Message delivered. Keeps a restart or
+  # redeploy from re-sending changes. `docker compose down -v` deletes it, and
+  # the next start sends the first-run Message again and skips any changes
+  # made in between.
+  opencode-watcher-data:

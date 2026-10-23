@@ -1,5 +1,5 @@
 import type { Message } from '../message'
-import type { Fetch } from './x'
+import type { Fetch } from './catalog'
 
 export type SendMessage = (message: Message) => Promise<void>
 

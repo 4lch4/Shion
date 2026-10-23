@@ -144,12 +144,12 @@ docker compose build
 docker compose --profile setup run --rm register-commands
 ```
 
-Start the Gateway, and the [X watcher](#x-watcher) if you want it:
+Start the Gateway, and the [OpenCode watcher](#opencode-watcher) if you want it:
 
 ```sh
 docker compose up -d bot
 docker compose logs -f bot
-docker compose up -d x-watcher
+docker compose up -d opencode-watcher
 ```
 
 Stop and remove the containers:
@@ -245,84 +245,92 @@ what the process binds inside the container (`3000`).
 up and `503 {"status":"degraded"}` when it drops. The Compose healthcheck calls it with Bun, since
 the image has no curl or wget.
 
-## X watcher
+## OpenCode watcher
 
-The X watcher is a Source that sends a Message whenever [@opencode](https://x.com/opencode) posts
-on X. It is not part of the Gateway: it polls the X API and calls `POST /v1/messages` like any
-other caller. It ships in the same image and runs as the `x-watcher` Compose service, so a release
-deploys it alongside the bot. [ADR 4](./docs/adr/0004-x-watcher.md) explains why.
+The OpenCode watcher is a Source that sends a Message when the models OpenCode offers change: a
+new model (free ones especially), a model withdrawn, a price change or a deprecation. It is not
+part of the Gateway: it polls public endpoints and calls `POST /v1/messages` like any other caller.
+It ships in the same image and runs as the `opencode-watcher` Compose service, so a release deploys
+it alongside the bot. [ADR 4](./docs/adr/0004-opencode-watcher.md) explains why.
 
-- **Source:** `x/opencode`. **Level:** `info`.
-- **Text:** the post, then its link (`https://x.com/opencode/status/<id>`), trimmed to fit 2000
-  characters.
-- **Which posts:** originals and quote posts. Replies and reposts are left out
-  (`exclude=replies,retweets`).
-- **When:** every 5 minutes. Posts that arrive together are sent oldest first.
+- **Source:** `opencode/models`. **Level:** `info`.
+- **When:** every 5 minutes. All the changes one poll finds go in one Message, grouped by plan.
+- **Cost:** nothing. Every source is public and needs no account or key.
 
-Run it locally against a Gateway on port 3000 with `bun run x-watcher`.
+Run it locally against a Gateway on port 3000 with `bun run opencode-watcher`.
+
+### What it reads
+
+| Source | Tells it |
+| --- | --- |
+| [`opencode.ai/zen/v1/models`](https://opencode.ai/zen/v1/models) | Models live on Zen right now |
+| [`opencode.ai/zen/go/v1/models`](https://opencode.ai/zen/go/v1/models) | Models live on Go right now |
+| [`models.dev/api.json`](https://models.dev/api.json) (`opencode`, `opencode-go`) | Names, prices, deprecation |
+
+The live lists decide what is new or removed. They are the first place a model shows up, sometimes
+before models.dev lists it. models.dev keeps retired models, so it only supplies names, prices and
+status, and price or status changes are reported only for models that are live. A model is called
+free when models.dev prices it at zero, or, if models.dev doesn't list it yet, when its ID ends in
+`-free`. The live lists' internal entries (`test`, anything ending in `-backup`) are ignored.
+
+models.dev is about 6 MB. The watcher sends its last ETag, so a poll where nothing changed gets a
+`304` with no body.
+
+A Message looks like this:
+
+```text
+**Zen**
+New: `jev-1.13-free`, free
+Price: GLM-5.3 (`glm-5.3`), $1.4 in / $4.4 out per 1M tokens → $1 in / $4 out per 1M tokens
+Removed: Big Pickle (`big-pickle`)
+
+**Go**
+New: `omen-alpha`
+```
 
 ### State and restarts
 
-The watcher keeps the account's user ID and the newest post it has delivered in
-`/app/data/x-watcher.json`, on the `x-watcher-data` volume. A restart or redeploy picks up from
-there, so old posts are not sent again and posts made while it was down are not missed.
+The watcher keeps the catalog as of its last Message in `/app/data/opencode-watcher.json`, on the
+`opencode-watcher-data` volume. A restart or redeploy compares against that, so changes are not
+sent twice and changes made while it was down are not missed.
 
-- The **first start sends nothing.** It records the newest post and only sends what comes after.
-- A post that **fails to deliver** is retried on the next poll. The watcher never moves past a post
-  Shion did not deliver.
-- `docker compose down -v` deletes the volume. The next start is a first start again, and anything
-  posted in between is skipped.
+- The **first start** sends one Message listing what is free right now, then reports only changes.
+- If a Message **fails to deliver**, the watcher keeps the old catalog, so the next poll finds the
+  same changes and tries again.
+- `docker compose down -v` deletes the volume. The next start is a first start again, and changes
+  made in between are not reported.
 
 ### Failures
 
-If X refuses a request — a bad token (`401`), no credits left, a rate limit (`429`) — the watcher
-sends one `warning` Message from `x/opencode` and keeps polling quietly. When X answers again it
-sends one `info` Message to say so. If `X_BEARER_TOKEN` is missing it sends one `warning`, then
-idles until restarted.
+If a source can't be read — an HTTP error, a timeout, a response that isn't JSON, an empty model
+list — the watcher sends one `warning` Message from `opencode/models` and keeps polling quietly. It
+needs every source for a poll, so it never reports a model as removed because one source failed.
+When the sources answer again it sends one `info` Message to say so. If `API_TOKEN` is missing it
+logs that and idles until restarted.
 
 The watcher never exits by itself. `deploy-app` runs `docker compose up --wait`, which would fail
 the deploy and roll back the Gateway if any service exited.
 
-### Cost
-
-The X API is pay-per-use from prepaid credits ([pricing][x-pricing]):
-
-| What                         | Price                         | How often                     |
-| ---------------------------- | ----------------------------- | ----------------------------- |
-| Each post a poll returns     | $0.005                        | Once per new post             |
-| User lookup for `@opencode`  | $0.010                        | Once, then kept in the state  |
-| A poll with no new posts     | Free                          | Every 5 minutes               |
-
-X only bills responses that return data, and bills a post once per UTC day however often it is
-fetched, so a retried post is normally free. The first start reads up to 5 posts to find the newest.
-At 10 original posts a day the watcher costs about $1.50 a month.
-
-Set a low monthly spending limit in the [X Developer Console][x-console] anyway. When credits or the
-limit run out, X refuses requests and the watcher sends its one `warning`.
-
-[x-pricing]: https://docs.x.com/x-api/getting-started/pricing
-[x-console]: https://console.x.com
-
 ### Setting it up on AICGEN00
 
-1. In the X Developer Console, create an app, buy credits and set a spending limit. Copy the app's
-   bearer token.
-2. Add `X_BEARER_TOKEN=<token>` to `/mnt/volume_apps/apps/shion/.env`.
-3. Copy this repository's `compose.yaml` over the server's. Until then, deploys keep running only
+It needs no new secrets: `API_TOKEN` is already in the server's `.env`.
+
+1. Copy this repository's `compose.yaml` over the server's. Until then, deploys keep running only
    the bot.
-4. Start it on the running version:
+2. Start it on the running version (or let the next release start it):
 
    ```sh
    cd /mnt/volume_apps/apps/shion
-   IMAGE_TAG="$(cat .current-tag)" docker compose up -d x-watcher
-   IMAGE_TAG="$(cat .current-tag)" docker compose logs -f x-watcher
+   IMAGE_TAG="$(cat .current-tag)" docker compose up -d opencode-watcher
+   IMAGE_TAG="$(cat .current-tag)" docker compose logs -f opencode-watcher
    ```
 
-   The log should say `Watching @opencode for posts newer than <id>`. Releases after this deploy the
-   watcher with the bot, at the same version.
+   The log should say `Watching <n> Zen and <n> Go models`, and the first Message should arrive.
+   Releases after this deploy the watcher with the bot, at the same version.
 
-Rolling back to a version without the watcher (0.2.0 or older) leaves `x-watcher` restarting,
-because the old image has no `src/x-watcher/`. The bot is unaffected.
+The running version must include the watcher. Rolling back to a version without it (0.2.0 or
+older) leaves `opencode-watcher` restarting, because the old image has no `src/opencode-watcher/`.
+The bot is unaffected.
 
 ## Quality checks
 
@@ -347,18 +355,17 @@ hook.
 | `API_PORT`                                                            | no       | `3000`      |
 | `API_HOST`                                                            | no       | `0.0.0.0`   |
 
-The X watcher reads its own settings. `compose.yaml` passes it only these, from the same `.env`:
+The OpenCode watcher reads its own settings. `compose.yaml` passes it only these, from the same
+`.env`:
 
-| Variable                          | Required | Default                 |
-| --------------------------------- | -------- | ----------------------- |
-| `X_BEARER_TOKEN`                  | yes      | —                       |
-| `API_TOKEN` or `SHION_API_TOKEN`  | yes      | —                       |
-| `X_USERNAME`                      | no       | `opencode`              |
-| `X_POLL_INTERVAL_SECONDS`         | no       | `300` (at least `60`)   |
-| `SHION_URL`                       | no       | `http://localhost:3000` |
-| `X_STATE_FILE`                    | no       | `data/x-watcher.json`   |
+| Variable                                  | Required | Default                        |
+| ----------------------------------------- | -------- | ------------------------------ |
+| `API_TOKEN` or `SHION_API_TOKEN`          | yes      | —                              |
+| `OPENCODE_WATCHER_POLL_INTERVAL_SECONDS`  | no       | `300` (at least `60`)          |
+| `SHION_URL`                               | no       | `http://localhost:3000`        |
+| `OPENCODE_WATCHER_STATE_FILE`             | no       | `data/opencode-watcher.json`   |
 
-Compose sets `SHION_URL` to `http://bot:3000` and `X_STATE_FILE` to the volume.
+Compose sets `SHION_URL` to `http://bot:3000` and `OPENCODE_WATCHER_STATE_FILE` to the volume.
 
 ## Decisions
 

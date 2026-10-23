@@ -25,5 +25,5 @@ pnpm-debug.log*
 
 archive/
 
-# X watcher state when run locally
+# OpenCode watcher state when run locally
 data/

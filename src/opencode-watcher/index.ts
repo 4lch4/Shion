@@ -1,14 +1,15 @@
-// The X watcher: a Source that polls one X account and hands each new post to Shion as a Message.
-// It runs as its own Compose service from the Gateway's image; see docs/adr/0004-x-watcher.md.
+// The OpenCode watcher: a Source that polls which models OpenCode's Zen and Go plans offer and hands
+// each change to Shion as a Message. It runs as its own Compose service from the Gateway's image;
+// see docs/adr/0004-opencode-watcher.md.
 //
 // It never exits on its own. `deploy-app` runs `docker compose up --wait`, which fails if any
 // service exits, and that would roll back the Gateway over a watcher problem. A bad config or an
-// X outage is reported as a warning Message and logged instead.
-import { loadShionTarget, loadUsername, loadXWatcherConfig, sourceFor } from './config'
+// outage is reported as a warning Message and logged instead.
+import { createCatalog } from './catalog'
+import { loadOpenCodeWatcherConfig, loadShionTarget, source } from './config'
 import { createShionSender } from './shion'
 import { createFileStateStore } from './state'
 import { createWatcher } from './watcher'
-import { createXClient } from './x'
 
 let timer: ReturnType<typeof setTimeout> | undefined
 
@@ -26,23 +27,15 @@ async function idleWithConfigError(error: unknown): Promise<void> {
   const reason = error instanceof Error ? error.message : String(error)
   const { apiToken, shionUrl } = loadShionTarget()
 
-  console.error(`X watcher is not configured: ${reason} Idling until restarted.`)
+  console.error(`OpenCode watcher is not configured: ${reason} Idling until restarted.`)
 
   if (apiToken) {
-    let username = 'opencode'
-
-    try {
-      username = loadUsername()
-    } catch {
-      // The bad username is what's being reported.
-    }
-
     const send = createShionSender(shionUrl, apiToken)
 
     await send({
-      source: sourceFor(username),
+      source,
       level: 'warning',
-      text: `The X watcher is not running: ${reason}\nFix the server's .env and restart it.`,
+      text: `The OpenCode watcher is not running: ${reason}\nFix the server's .env and restart it.`,
     }).catch((sendError: unknown) => console.error('Could not tell Shion.', sendError))
   }
 
@@ -53,43 +46,38 @@ async function idleWithConfigError(error: unknown): Promise<void> {
 async function main(): Promise<void> {
   onShutdown()
 
-  let config: ReturnType<typeof loadXWatcherConfig>
+  let config: ReturnType<typeof loadOpenCodeWatcherConfig>
 
   try {
-    config = loadXWatcherConfig()
+    config = loadOpenCodeWatcherConfig()
   } catch (error) {
     await idleWithConfigError(error)
     return
   }
 
   const watcher = createWatcher({
-    x: createXClient(config.bearerToken),
+    catalog: createCatalog(),
     send: createShionSender(config.shionUrl, config.apiToken),
     store: createFileStateStore(config.stateFile),
-    username: config.username,
-    source: sourceFor(config.username),
+    source,
   })
 
   console.log(
-    `X watcher polling @${config.username} every ${config.pollIntervalMs / 1000}s, sending to ${config.shionUrl}.`,
+    `OpenCode watcher polling every ${config.pollIntervalMs / 1000}s, sending to ${config.shionUrl}.`,
   )
 
   const loop = async (): Promise<void> => {
-    let retryAt: number | undefined
-
     try {
       const result = await watcher.poll()
-      retryAt = result.retryAt
 
       if (result.delivered > 0) {
-        console.log(`Delivered ${result.delivered} post(s).`)
+        console.log(`Delivered ${result.delivered} change(s).`)
       }
     } catch (error) {
       console.error('Poll failed.', error)
     }
 
-    const delay = Math.max(config.pollIntervalMs, (retryAt ?? 0) - Date.now())
-    timer = setTimeout(loop, delay)
+    timer = setTimeout(loop, config.pollIntervalMs)
   }
 
   await loop()

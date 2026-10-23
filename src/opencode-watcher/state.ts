@@ -1,13 +1,15 @@
 import { mkdir, rename } from 'node:fs/promises'
 import { dirname } from 'node:path'
+import type { CatalogRead } from './catalog'
 
 export interface WatcherState {
-  /** The handle the rest of the state belongs to. A different one starts over. */
-  readonly username?: string
-  readonly userId?: string
-  /** The newest post already delivered, or seen on the first run. */
-  readonly sinceId?: string
+  /** Bumped when the shape changes. State from another version starts over. */
+  readonly version?: number
+  /** The catalog as of the last Message delivered, or the first read. */
+  readonly last?: CatalogRead
 }
+
+export const stateVersion = 1
 
 export interface StateStore {
   load(): Promise<WatcherState>

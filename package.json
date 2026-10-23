@@ -14,11 +14,11 @@
     "format": "biome format --write .",
     "format:check": "biome format .",
     "lint": "biome lint .",
+    "opencode-watcher": "bun run src/opencode-watcher/index.ts",
     "prepare": "husky",
     "start": "bun run src/index.ts",
     "test": "bun test",
-    "typecheck": "tsc --noEmit",
-    "x-watcher": "bun run src/x-watcher/index.ts"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@elysiajs/swagger": "^1.3.1",

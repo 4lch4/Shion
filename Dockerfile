@@ -17,7 +17,7 @@ ENV NODE_ENV=production
 COPY --from=production-dependencies /app/node_modules ./node_modules
 COPY --from=dependencies /app/package.json ./package.json
 COPY src ./src
-# The X watcher keeps its state here, on a named volume. A new named volume
+# The OpenCode watcher keeps its state here, on a named volume. A new named volume
 # copies this folder's owner, so the watcher can write to it as `bun`.
 RUN mkdir -p /app/data && chown bun:bun /app/data
 USER bun
