@@ -58,7 +58,7 @@ jobs:
 
           path=".changeset/dependabot-$PR_NUMBER.md"
 
-          # A synchronize event after our own push lands here again.
+          # A later Dependabot update lands here again, after our commit.
           if [[ -e "$path" ]]; then
             echo 'skip=true' >> "$GITHUB_OUTPUT"
             echo "$path already exists; nothing to do"
