@@ -5,6 +5,7 @@ import type { GatewayStatus } from '../bot'
 import type { Deliver } from '../delivery'
 import { digestToken, isAuthorized, unauthorizedResponse } from './auth'
 import type { Counters } from './counters'
+import { healthRoute } from './health'
 import { messagesRoute } from './messages'
 import { statusRoute } from './status'
 
@@ -40,6 +41,7 @@ export function buildApi({ deliver, gateway, apiToken }: ApiOptions) {
         specPath: '/docs/json',
       }),
     )
+    .use(healthRoute(gateway))
     .group('/v1', v1 =>
       v1
         .onBeforeHandle(({ request }) =>

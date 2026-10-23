@@ -1,6 +1,7 @@
 # 2. release-please owns the version; a merged Release PR is the release
 
-Status: accepted
+Status: accepted; the WUD deployment parts are superseded by
+[ADR 3](./0003-deploy-on-release.md)
 
 Date: 2026-10-01
 
