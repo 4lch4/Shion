@@ -39,8 +39,15 @@ Shion as a whole, considered as the thing that accepts Messages and performs Del
 bot and the HTTP API are two faces of one Gateway, not two systems.
 _Avoid_: Bot, API, service, bridge, relay
 
+**Watcher**:
+A Source that runs on its own, polls something outside Shion, and hands each change it finds to
+the Gateway as a Message. The Gateway treats it like any other Source; a Watcher is not part of
+the Gateway.
+_Avoid_: Poller, monitor, integration
+
 ## Relationships
 
 - A **Message** has exactly one **Source** and one **Level**.
 - A **Message** is delivered to exactly one **Recipient** — the **Source** cannot choose it.
 - The **Gateway** performs exactly one **Delivery** per accepted **Message**.
+- A **Watcher** is a **Source**. The **Gateway** does not know which Sources are Watchers.
