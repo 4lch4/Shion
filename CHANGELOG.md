@@ -6,7 +6,6 @@
 ### Bug Fixes
 
 * **deps:** bump Bun to 1.4.4 for the eMudhra CA trust fix ([e722cbf](https://github.com/4lch4/Shion/commit/e722cbf7bd109f9712471619f630674eb70cd465))
-* **deps:** bump Bun to 1.4.4 for the eMudhra CA trust fix ([f5cb5ca](https://github.com/4lch4/Shion/commit/f5cb5ca823aba4e538252551fbcabaea079d86ad))
 
 ## [0.2.0](https://github.com/4lch4/Shion/compare/v0.1.1...v0.2.0) (2026-10-23)
 
