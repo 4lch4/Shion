@@ -1,45 +1,96 @@
 name: Release
 
-# Publishes an image when release-please tags a release, then deploys it to
-# AICGEN00 (see deploy.yml). Merging the release PR is what triggers this:
-# release-please pushes the tag, the tag push lands here.
+# Turns the changesets on main into a release (ADR 4).
 #
-# Requires secrets.RELEASE_PLEASE_TOKEN (a PAT, not GITHUB_TOKEN) in the
-# release-please workflow. Tags created with GITHUB_TOKEN do not trigger workflows,
-# so nothing would be published and the failure would be silent.
+# Every push to main runs changesets/action. With changesets pending it opens or
+# updates one "chore: version packages" PR. With none pending it runs
+# `changeset publish`, which tags every package at its new version
+# (`<package>@<version>`) and creates the GitHub Releases, then reports what it
+# published. The images job builds and pushes each published package that has a
+# `docker` field, and the deploy job hands that app and version to deploy.yml.
+# Nothing runs on a tag, so ADR 2's warning about tags created with GITHUB_TOKEN
+# no longer applies. A PAT is still needed so CI runs on the Version Packages
+# PR; secrets.RELEASE_PLEASE_TOKEN is that PAT, with Contents and Pull requests
+# at read/write.
 on:
   push:
-    tags:
-      - 'v*.*.*'
+    branches:
+      - main
 
 permissions:
-  contents: read
+  contents: write
+  pull-requests: write
+
+# One release at a time, and a release is never cancelled halfway: the job
+# pushes tags and GitHub Releases, which a cancel would leave half done.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
-  publish:
-    name: Publish Image
+  changesets:
+    name: Version or publish
     runs-on: ubuntu-latest
     outputs:
-      version: ${{ steps.version.outputs.version }}
+      published: ${{ steps.changesets.outputs.published }}
+      packages: ${{ steps.packages.outputs.packages }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
 
-      # v0.2.0 -> 0.2.0, the exact tag deploy.yml pins on the server.
-      - name: Read the version
-        id: version
-        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
 
-      - name: Setup Docker metadata
-        id: meta
-        uses: docker/metadata-action@v6
+      - name: Install dependencies
+        run: bun install --frozen-lockfile --ignore-scripts
+
+      - name: Open the Version Packages PR, or publish
+        id: changesets
+        uses: changesets/action@v2
         with:
-          images: |
-            4lch4/shion-bot
-          tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=sha
+          version-script: bun run version
+          publish-script: bunx changeset publish
+          commit-message: 'chore: version packages'
+          pr-title: 'chore: version packages'
+          create-github-releases: true
+          github-token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+        env:
+          # @changesets/changelog-github reads this to link the commit and PR in
+          # each changelog entry. It must match github-token: the action refuses
+          # a GITHUB_TOKEN that differs.
+          GITHUB_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+
+      # The published packages are every package changeset publish tagged,
+      # including ones without an image. This narrows them to what this
+      # repository can build and deploy.
+      - name: Select the image packages to release
+        id: packages
+        if: steps.changesets.outputs.published == 'true'
+        env:
+          PUBLISHED_PACKAGES: ${{ steps.changesets.outputs['published-packages'] }}
+        run: |
+          {
+            echo 'packages<<EOF'
+            bun run scripts/image-packages.ts --published "$PUBLISHED_PACKAGES"
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+
+  images:
+    name: Build ${{ matrix.app }}
+    needs: changesets
+    # A release can publish only packages without an image, such as the shared
+    # kit; then there is nothing to build.
+    if: needs.changesets.outputs.published == 'true' && needs.changesets.outputs.packages != '[]'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.changesets.outputs.packages) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
 
       - name: Login to Docker Hub
         uses: docker/login-action@v4
@@ -50,18 +101,43 @@ jobs:
       - name: Setup Docker Buildx
         uses: docker/setup-buildx-action@v4
 
+      # type=semver cannot parse a tag like shion@0.3.0, so the version from
+      # the action's published-packages output is passed explicitly. Each
+      # release gets X.Y.Z, X.Y, sha-… and latest, as ADR 2 describes; deploys
+      # pin X.Y.Z.
+      - name: Setup Docker metadata
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ matrix.image }}
+          tags: |
+            type=semver,pattern={{version}},value=${{ matrix.version }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ matrix.version }}
+            type=sha
+            type=raw,value=latest
+
       - name: Build and push
         uses: docker/build-push-action@v7
         with:
+          context: .
+          file: ${{ matrix.dockerfile }}
           platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
 
   deploy:
-    name: Deploy
-    needs: publish
+    name: Deploy ${{ matrix.app }}
+    needs:
+      - changesets
+      - images
+    if: needs.changesets.outputs.published == 'true' && needs.changesets.outputs.packages != '[]'
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.changesets.outputs.packages) }}
     uses: ./.github/workflows/deploy.yml
     with:
-      version: ${{ needs.publish.outputs.version }}
+      app: ${{ matrix.app }}
+      version: ${{ matrix.version }}
     secrets: inherit

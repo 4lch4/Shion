@@ -4,7 +4,7 @@
  * places.
  *
  * Dependabot's docker ecosystem only rewrites the `FROM oven/bun:` lines in the
- * Dockerfile. Without this check the image, `.bun-version` and package.json
+ * Dockerfiles. Without this check the image, `.bun-version` and package.json
  * drift apart, and a security fix in Bun reaches the image while the rest of
  * the toolchain still claims the old version.
  */
@@ -29,15 +29,31 @@ function pin(name: string, raw: string): Pin {
 }
 
 const bunVersion = (await Bun.file(new URL('.bun-version', root)).text()).trim()
-const dockerfile = await Bun.file(new URL('Dockerfile', root)).text()
-const fromPins = [...dockerfile.matchAll(/^FROM oven\/bun:(\S+)/gm)].map(match => {
-  const line = dockerfile.slice(0, match.index ?? 0).split('\n').length
-  return pin(`Dockerfile:${line} FROM oven/bun:${match[1]}`, match[1])
-})
+const dockerfiles = [
+  ...new Bun.Glob('packages/*/Dockerfile').scanSync({ cwd: root.pathname }),
+].sort()
 
-if (fromPins.length === 0) {
-  console.error('No "FROM oven/bun:<version>" lines found in the Dockerfile.')
+if (dockerfiles.length === 0) {
+  console.error('No packages/*/Dockerfile found.')
   process.exit(1)
+}
+
+const fromPins: Pin[] = []
+
+for (const path of dockerfiles) {
+  const dockerfile = await Bun.file(new URL(path, root)).text()
+  const matches = [...dockerfile.matchAll(/^FROM oven\/bun:(\S+)/gm)]
+
+  if (matches.length === 0) {
+    console.error(`No "FROM oven/bun:<version>" lines found in ${path}.`)
+    process.exit(1)
+  }
+
+  for (const match of matches) {
+    const line = dockerfile.slice(0, match.index ?? 0).split('\n').length
+    const tag = match[1] ?? ''
+    fromPins.push(pin(`${path}:${line} FROM oven/bun:${tag}`, tag))
+  }
 }
 
 const pins: Pin[] = [
@@ -56,7 +72,7 @@ if (mismatched.length > 0) {
     console.error(`  ${entry.name}: ${entry.version}`)
   }
 
-  console.error('Bump every pin together; Dependabot only edits the Dockerfile.')
+  console.error('Bump every pin together; Dependabot only edits the Dockerfiles.')
   process.exit(1)
 }
 

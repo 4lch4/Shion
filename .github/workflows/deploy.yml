@@ -1,10 +1,12 @@
 name: Deploy
 
-# Deploys a published release to AICGEN00 over the tailnet.
+# Deploys one app this repository ships to AICGEN00 over the tailnet.
 #
-# release.yml calls this once the image is on Docker Hub, so merging the
-# Release PR is also the deploy. Run it by hand from the Actions tab to
-# redeploy a version, or to roll back by entering an older one.
+# release.yml calls this once for each published package that has an image, so
+# merging the Version Packages PR is also the deploy. Run it by hand from the
+# Actions tab to redeploy a version, or to roll back by entering an older one.
+# A manual run takes free text, so `app` is checked against the packages that
+# declare a `docker` field in scripts/image-packages.ts.
 #
 # The runner joins the tailnet as an ephemeral node tagged tag:ci and logs in
 # as `deploy` over Tailscale SSH, so there is no SSH key to manage. That
@@ -20,6 +22,10 @@ name: Deploy
 on:
   workflow_call:
     inputs:
+      app:
+        description: App to deploy, as its docker.app (e.g. shion).
+        type: string
+        required: true
       version:
         description: Release to deploy, without the v (e.g. 0.2.0).
         type: string
@@ -27,6 +33,10 @@ on:
 
   workflow_dispatch:
     inputs:
+      app:
+        description: App to deploy, as its docker.app (e.g. shion).
+        type: string
+        required: true
       version:
         description: Release to deploy, without the v (e.g. 0.2.0). An older one rolls back.
         type: string
@@ -35,27 +45,39 @@ on:
 permissions:
   contents: read
 
-# One deploy at a time. A second one waits rather than cancelling the first,
-# which could leave the server mid-deploy.
+# One deploy at a time for the whole server, not one per app: two apps must
+# never deploy at once, and a second one waits rather than cancelling the
+# first, which could leave the server mid-deploy.
 concurrency:
-  group: deploy-shion-aicgen00
+  group: deploy-aicgen00
   cancel-in-progress: false
 
 env:
-  APP: shion
   DEPLOY_HOST: aicgen00
-  SHION_PORT: '3300'
 
 jobs:
   deploy:
     name: Deploy to AICGEN00
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    env:
+      APP: ${{ inputs.app }}
+      # The Gateway's published port, where the deploy Message goes. It does not
+      # move when a Watcher is the app being deployed.
+      SHION_PORT: '3300'
     steps:
-      - name: Check the version
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Check the app and version
         env:
           VERSION: ${{ inputs.version }}
         run: |
+          bun run scripts/image-packages.ts --app "$APP"
+
           if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             echo "::error::version must look like 0.2.0, got '$VERSION'"
             exit 1
