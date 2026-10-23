@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.2.0](https://github.com/4lch4/Shion/compare/v0.1.1...v0.2.0) (2026-10-23)
+
+
+### Features
+
+* deploy releases to AICGEN00 over Tailscale SSH ([57f3bfe](https://github.com/4lch4/Shion/commit/57f3bfec41c4f75fa595191bb26b14ba662a70e8))
+* deploy releases to AICGEN00 over Tailscale SSH ([4e1929f](https://github.com/4lch4/Shion/commit/4e1929fbc5b1aae9dc00f4a30db3ad4b6bb35466))
+* **deploy:** manage the server with WUD instead of a bash script ([edb067e](https://github.com/4lch4/Shion/commit/edb067e68c3706c9e21fd0ca416bba2a3c5a1f96))
+
 ## [0.1.1](https://github.com/4lch4/Shion/compare/v0.1.0...v0.1.1) (2026-10-01)
 
 
