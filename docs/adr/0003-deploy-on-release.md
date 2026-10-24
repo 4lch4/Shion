@@ -8,7 +8,6 @@ Date: 2026-10-12
 
 [ADR 2](./0002-release-and-versioning.md) made a merged Release PR the release, and left deploying
 to What's Up Docker (WUD) polling Docker Hub on the server. It recorded the costs of that itself:
-
 - Updates landed silently. No notification channel was set up, so a breaking minor release could
   reach callers unannounced.
 - Nothing gated an update on health. WUD recreated the container and moved on.
@@ -26,7 +25,6 @@ tailnet, and `authorized_keys` is never read.
 
 **`release.yml` publishes the image, then calls `deploy.yml`, which deploys that exact version to
 AICGEN00 over Tailscale SSH.**
-
 - **Trigger.** The deploy runs after the publish job, so merging the Release PR is the release and
   the deploy. `deploy.yml` can also be run by hand with any version, which makes redeploys and
   rollbacks one form in the Actions tab.
@@ -51,7 +49,7 @@ AICGEN00 over Tailscale SSH.**
 ## Consequences
 
 - A Release PR merge now changes production within minutes. Edit the release notes and decide
-  *when* before merging, as ADR 2 already asks.
+  _when_ before merging, as ADR 2 already asks.
 - Three secrets are needed: `TS_OAUTH_CLIENT_ID`, `TS_OAUTH_SECRET`, and optionally
   `SHION_API_TOKEN` for the deploy Message.
 - AICGEN00 must carry a Tailscale tag (`tag:server`), because Tailscale SSH rules can only name a

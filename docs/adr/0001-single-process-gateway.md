@@ -41,7 +41,7 @@ Three supporting decisions follow from that.
 
 ### `login()` resolving is not readiness
 
-`client.login()` resolves when Discord has validated the *token*. The gateway connection is
+`client.login()` resolves when Discord has validated the _token_. The gateway connection is
 established separately and the `ClientReady` event fires after that. Because the port is not bound
 until `ClientReady`, the ordering is structural: it is impossible to reach `POST /v1/messages` while
 the bot is offline, rather than merely unlikely because of the order two `await`s happen to appear

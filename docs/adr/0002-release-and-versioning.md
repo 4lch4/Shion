@@ -24,7 +24,7 @@ lint, typecheck, and tests ran in the husky hook and nowhere else.
 An audit of ~195 repositories on this account from 2017 to 2026 turned up five successive
 versioning schemes — Azure build numbers, `package.json` → Docker tag, a hardcoded pipeline
 variable, a Taskfile constant, and finally git tag → Docker tag — and not one of them ever
-automated the version *decision*. Every version ever published here was a human typing a
+automated the version _decision_. Every version ever published here was a human typing a
 number into a terminal.
 
 ## Decision
@@ -41,8 +41,8 @@ release-please parses conventional commits and computes the next version: `fix:`
 But release-please does not tag on merge to `main`. It opens a pull request and leaves it
 open, updating it as further work lands. **Merging that PR is the release.** Not merging it
 means nothing ships, no tag appears, and no image is published. The human keeps the only
-decision that has ever mattered — *when* — while surrendering the one that has always been
-drift-prone — *what number*.
+decision that has ever mattered — _when_ — while surrendering the one that has always been
+drift-prone — _what number_.
 
 This is deliberately not the fully-automatic shape. Automatic release-on-merge is what broke
 `Koa-API-Template` in 2022: publishing on every push to `main` meant version `1.0.0` was
@@ -53,7 +53,7 @@ permanently claimed on the registry, so it had to be rewound to `0.0.0`.
 `Shion-API` solved source-of-truth in 2024 by deleting the manifest field and letting the tag
 be the version — possible only because `go.mod` has no version field. Bun has no such escape,
 so `package.json` must carry one. The next best thing is that exactly one process writes it,
-in the same commit that creates the tag. Drift stops being *checked for* and becomes
+in the same commit that creates the tag. Drift stops being _checked for_ and becomes
 structurally impossible.
 
 The manifest is seeded at `0.0.1`. The version line is `0.x` because the HTTP contract is not
@@ -94,17 +94,17 @@ model has to be right this time.
 
 Per release, Docker Hub receives:
 
-| Tag     | Mutable | Purpose                                          |
-| ------- | ------- | ------------------------------------------------ |
-| `0.1.2` | No      | Immutable record; exact pin.                     |
-| `0.1`   | Yes     | Tracks newest `0.1.x`; the tag a watcher follows.|
-| `latest`| Yes     | Tracks newest release; ad-hoc testing only.      |
-| `sha-…` | No      | Reproducible build reference.                    |
+| Tag      | Mutable | Purpose                                           |
+| -------- | ------- | ------------------------------------------------- |
+| `0.1.2`  | No      | Immutable record; exact pin.                      |
+| `0.1`    | Yes     | Tracks newest `0.1.x`; the tag a watcher follows. |
+| `latest` | Yes     | Tracks newest release; ad-hoc testing only.       |
+| `sha-…`  | No      | Reproducible build reference.                     |
 
 `latest` is published, and is not to be deployed from. It exists so a build can be tried without
 picking a version, and it costs nothing: `docker/metadata-action`'s default `flavor: latest=auto`
 emits it whenever a `type=semver` tag fires, so allowing it is a matter of not overriding the
-default. What matters is that the *deployed* container is never pinned to it. A `latest` deploy
+default. What matters is that the _deployed_ container is never pinned to it. A `latest` deploy
 answers "which version is running?" with a shrug.
 
 ### A deployed container pins an exact tag, not a floating one
@@ -144,7 +144,7 @@ container plus its name appended to `wud.trigger.include`.
 
 This was decided the other way round first: an attempt to suppress `latest` with
 `flavor: latest=false` was reverted once it was clear the convenience was worth more than the
-tidiness. The distinction being recorded is between *publishing* `latest` and *deploying* it.
+tidiness. The distinction being recorded is between _publishing_ `latest` and _deploying_ it.
 
 ## Consequences
 
@@ -182,7 +182,7 @@ tidiness. The distinction being recorded is between *publishing* `latest` and *d
 - **Tag on merge to `main`.** Rejected — see `Koa-API-Template` above.
 - **Suppress `latest` with `flavor: latest=false`.** Implemented, then reverted. It cost a
   suppression block to defend a rule that only mattered for deploys, and `latest` earns its keep
-  for ad-hoc testing. The rule that matters is narrower: do not *deploy* it.
+  for ad-hoc testing. The rule that matters is narrower: do not _deploy_ it.
 - **A deployed container tracking the floating `{{major}}.{{minor}}` tag.** Superseded; see
   "A deployed container pins an exact tag" above.
 - **Patch/minor threshold split with a notification channel.** The intended design. Deferred

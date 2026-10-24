@@ -44,7 +44,7 @@ concurrency:
 env:
   APP: shion
   DEPLOY_HOST: aicgen00
-  SHION_PORT: '3300'
+  SHION_PORT: "3300"
 
 jobs:
   deploy:
