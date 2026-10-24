@@ -1,27 +1,27 @@
 version: 2
 updates:
   # Update dependencies of the GitHub Actions used in .github/workflows.
-  - package-ecosystem: 'github-actions'
-    directory: '/'
+  - package-ecosystem: "github-actions"
+    directory: "/"
     schedule:
-      interval: 'weekly'
+      interval: "weekly"
     groups:
       actions:
-        patterns: ['*']
+        patterns: [ "*" ]
 
   # Update dependencies from bun.lock.
-  - package-ecosystem: 'bun'
-    directory: '/'
+  - package-ecosystem: "bun"
+    directory: "/"
     schedule:
-      interval: 'weekly'
+      interval: "weekly"
     groups:
       deps:
-        patterns: ['*']
+        patterns: [ "*" ]
 
   # Update the oven/bun base image in the Dockerfile. This only rewrites the FROM
   # lines, so a bump here fails "Bun version pins" in ci.yml until .bun-version
   # and package.json are bumped to match.
-  - package-ecosystem: 'docker'
-    directory: '/'
+  - package-ecosystem: "docker"
+    directory: "/"
     schedule:
-      interval: 'weekly'
+      interval: "weekly"

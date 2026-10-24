@@ -35,7 +35,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    command: ["bun", "run", "src/deploy-commands.ts"]
+    command: [ "bun", "run", "src/deploy-commands.ts" ]
     env_file:
       - .env
     init: true
