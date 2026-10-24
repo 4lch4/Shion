@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.2](https://github.com/4lch4/Shion/compare/v0.2.1...v0.2.2) (2026-10-24)
+
+
+### Bug Fixes
+
+* **deps:** patch undici DoS advisories and bump Biome to 2.6.2 ([#25](https://github.com/4lch4/Shion/issues/25)) ([62e131c](https://github.com/4lch4/Shion/commit/62e131cf954261e484f6515de0baf89535a332c1))
+
 ## [0.2.1](https://github.com/4lch4/Shion/compare/v0.2.0...v0.2.1) (2026-10-23)
 
 
