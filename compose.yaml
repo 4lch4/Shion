@@ -30,6 +30,31 @@ services:
       start_period: 60s
       start_interval: 2s
 
+  # A Source, not part of the Gateway: it polls which models OpenCode offers and
+  # hands each change to the bot over the Compose network, like any other
+  # caller. Same image and IMAGE_TAG as the bot, so a release and `deploy-app`
+  # cover both. See docs/adr/0004-opencode-watcher.md.
+  opencode-watcher:
+    image: 4lch4/shion-bot:${IMAGE_TAG:-0.1}
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["bun", "run", "src/opencode-watcher/index.ts"]
+    # Only what the watcher needs, read from .env, rather than the bot's
+    # Discord secrets too.
+    environment:
+      API_TOKEN: ${API_TOKEN:-}
+      OPENCODE_WATCHER_POLL_INTERVAL_SECONDS: ${OPENCODE_WATCHER_POLL_INTERVAL_SECONDS:-}
+      SHION_URL: http://bot:${API_PORT:-3000}
+      OPENCODE_WATCHER_STATE_FILE: /app/data/opencode-watcher.json
+    volumes:
+      - opencode-watcher-data:/app/data
+    depends_on:
+      bot:
+        condition: service_healthy
+    init: true
+    restart: unless-stopped
+
   register-commands:
     image: 4lch4/shion-bot:${IMAGE_TAG:-0.1}
     build:
@@ -42,3 +67,10 @@ services:
     profiles:
       - setup
     restart: "no"
+
+volumes:
+  # The model catalog as of the last Message delivered. Keeps a restart or
+  # redeploy from re-sending changes. `docker compose down -v` deletes it, and
+  # the next start sends the first-run Message again and skips any changes
+  # made in between.
+  opencode-watcher-data:
