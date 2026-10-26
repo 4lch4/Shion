@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.0
+
+### Minor Changes
+
+- [#32](https://github.com/4lch4/Shion/pull/32) [`d5fbe28`](https://github.com/4lch4/Shion/commit/d5fbe285f19940e96cec2be1050a6ca6c32eeb67) Thanks [@4lch4](https://github.com/4lch4)! - A Message is now a Notification. `POST /v1/notifications` delivers one, and `GET /v1/status`
+  reports its counters as `notifications`. `POST /v1/messages` and the `messages` counters still
+  work, as deprecated aliases, so no Caller breaks.
+
 ## 0.2.2
 
 ### Patch Changes
