@@ -30,14 +30,14 @@
     },
     "packages/opencode-watcher": {
       "name": "opencode-watcher",
-      "version": "0.0.0",
+      "version": "0.1.0",
       "dependencies": {
         "@shion/watcher-kit": "workspace:*",
       },
     },
     "packages/watcher-kit": {
       "name": "@shion/watcher-kit",
-      "version": "0.0.0",
+      "version": "0.1.0",
     },
   },
   "packages": {
