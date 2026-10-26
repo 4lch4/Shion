@@ -8,7 +8,9 @@ A pull request that changes no package, such as docs or CI only, needs no change
 empty one (`bunx changeset --empty`): while one is pending on `main`, `changesets/action` neither
 opens a Version Packages pull request nor publishes, so nothing releases. CI runs
 `changeset status --since=origin/main`, which fails when a package changed without a changeset, and
-rejects empty changesets.
+rejects empty changesets. Markdown files inside a package, such as a README, don't count as a
+package change: `changedFilePatterns` in `config.json` excludes `**/*.md`, and `CHANGELOG.md` is
+written by Changesets.
 
 `.github/workflows/release.yml` collects the pending changesets into one Version Packages pull
 request. Merging that pull request is the release: Changesets tags each package
