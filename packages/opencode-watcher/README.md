@@ -111,9 +111,9 @@ the `environment:` block, to point it elsewhere.
 
 ## Setting it up on AICGEN00
 
-Nothing new is needed in Docker Hub beyond allowing the token to push
-`4lch4/shion-opencode-watcher`, which exists after the first push. The `shion` network must exist
-before anything starts; 4lch4/Infrastructure's `server/README.md` describes it:
+Create the `4lch4/shion-opencode-watcher` repository on Docker Hub first, and check that the
+`DOCKERHUB_TOKEN` secret can push to it, so the first release can't fail at the push. The `shion`
+network must exist before anything starts; 4lch4/Infrastructure's `server/README.md` describes it:
 
 ```sh
 docker network inspect shion >/dev/null 2>&1 || docker network create shion
@@ -135,9 +135,10 @@ sudo chmod 640 "$APP_DIR/.env"
 sudo install -o deploy -g deploy -m 644 /dev/null "$APP_DIR/.current-tag"
 ```
 
-The first deploy is the Deploy workflow, run by hand, because no release has happened yet. In the
-Actions tab, run **Deploy** with app `opencode-watcher` and the version to deploy; the first release
-is `0.1.0`. From a terminal that is:
+Do this before merging the Version Packages pull request that releases `opencode-watcher`. Merging
+it builds the image and deploys it, and `deploy-app` refuses an app with no folder. If the folder
+wasn't ready in time, that deploy fails; once it is, run **Deploy** by hand from the Actions tab
+with app `opencode-watcher` and the released version, or from a terminal:
 
 ```sh
 gh workflow run deploy.yml -f app=opencode-watcher -f version=0.1.0
