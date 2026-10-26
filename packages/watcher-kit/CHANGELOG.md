@@ -1,5 +1,13 @@
 # @shion/watcher-kit
 
+## 0.1.1
+
+### Patch Changes
+
+- [#32](https://github.com/4lch4/Shion/pull/32) [`9910b2e`](https://github.com/4lch4/Shion/commit/9910b2e39dd5754cecd18c148c16120e7c413f26) Thanks [@4lch4](https://github.com/4lch4)! - A Message is now a Notification: the kit exports `Notification` and `SendNotification` in place of
+  `Message` and `SendMessage`. The kit still posts to `/v1/messages`, so it works with any Gateway.
+  The OpenCode Watcher's first DM now says "I'll let you know when" a model changes.
+
 ## 0.1.0
 
 ### Minor Changes
