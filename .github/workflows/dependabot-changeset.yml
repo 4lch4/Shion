@@ -16,7 +16,7 @@ name: Dependabot Changeset
 # package.json. The workflow file comes from the base branch, so a pull
 # request cannot change what runs.
 #
-# The commit goes in with secrets.RELEASE_PLEASE_TOKEN so CI reruns on it.
+# The commit goes in with secrets.RELEASE_TOKEN so CI reruns on it.
 # Dependabot stops rebasing a pull request once anyone else has committed to
 # it, so a later conflict needs `@dependabot rebase` by hand rather than the
 # automatic rebase.
@@ -52,7 +52,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.ref }}
           repository: ${{ github.event.pull_request.head.repo.full_name }}
           fetch-depth: 0
-          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+          token: ${{ secrets.RELEASE_TOKEN }}
 
       - name: Write the changeset
         id: changeset

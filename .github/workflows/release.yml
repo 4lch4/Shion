@@ -10,7 +10,7 @@ name: Release
 # `docker` field, and the deploy job hands that app and version to deploy.yml.
 # Nothing runs on a tag, so ADR 2's warning about tags created with GITHUB_TOKEN
 # no longer applies. A PAT is still needed so CI runs on the Version Packages
-# PR; secrets.RELEASE_PLEASE_TOKEN is that PAT, with Contents and Pull requests
+# PR; secrets.RELEASE_TOKEN is that PAT, with Contents and Pull requests
 # at read/write.
 on:
   push:
@@ -53,12 +53,12 @@ jobs:
           commit-message: "chore: version packages"
           pr-title: "chore: version packages"
           create-github-releases: true
-          github-token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+          github-token: ${{ secrets.RELEASE_TOKEN }}
         env:
           # @changesets/changelog-github reads this to link the commit and PR in
           # each changelog entry. It must match github-token: the action refuses
           # a GITHUB_TOKEN that differs.
-          GITHUB_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
 
       # The published packages are every package changeset publish tagged,
       # including ones without an image. This narrows them to what this

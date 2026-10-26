@@ -97,8 +97,10 @@ How it is used:
 - **A change that should release comes with a changeset**, written with `bunx changeset`. Its
   summary is the release note. Conventional commits stay as a style but no longer decide versions.
 - **CI fails a pull request that changes a package without a changeset**
-  (`changeset status --since=origin/main`). A docs-only or CI-only change adds an empty one with
-  `bunx changeset --empty`. `AGENTS.md` tells agents to add one.
+  (`changeset status --since=origin/main`). A docs-only or CI-only change needs none. CI rejects
+  an empty changeset (`bunx changeset --empty`), because while one is pending on `main`,
+  `changesets/action` neither opens the Version Packages pull request nor publishes. `AGENTS.md`
+  tells agents when to add one.
 - **Dependabot pull requests get a changeset automatically.** A workflow adds a patch changeset for
   the packages each one touches, so dependency and base-image updates, including Bun security
   fixes, release when merged.

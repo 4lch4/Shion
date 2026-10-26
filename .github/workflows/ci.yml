@@ -3,8 +3,9 @@ name: CI
 # Lint, typecheck, test and build every image on a pull request.
 #
 # A pull request that changes a package also needs a changeset, or the
-# `changeset` job fails: `bunx changeset` for a change that should release,
-# `bunx changeset --empty` for docs-only and CI-only work. ADR 4 has the
+# `changeset` job fails. Docs-only and CI-only work needs none, and the job
+# rejects an empty changeset: while one is pending on main, changesets/action
+# neither opens the Version Packages PR nor publishes. ADR 4 has the
 # reasoning.
 on:
   push:
@@ -77,6 +78,21 @@ jobs:
 
       - name: Check for a changeset
         run: bunx changeset status --since=origin/main
+
+      # An empty changeset releases nothing, but while one is pending on main
+      # changesets/action stops: no Version Packages PR, and no publish.
+      - name: Reject empty changesets
+        run: |
+          status=0
+          for file in .changeset/*.md; do
+            [[ "$(basename "$file")" == README.md ]] && continue
+            releases="$(awk '/^---$/ { n++; next } n == 1 && NF' "$file")"
+            if [[ -z "$releases" ]]; then
+              echo "::error file=$file::Empty changeset. A pull request that changes no package needs none; delete this file."
+              status=1
+            fi
+          done
+          exit "$status"
 
   packages:
     name: Image packages
