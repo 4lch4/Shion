@@ -1,23 +1,23 @@
-import type { Message } from './message'
+import type { Notification } from './notification'
 
 /** The subset of `fetch` the kit uses, so tests can answer without a network. */
 export type Fetch = (url: string, init?: RequestInit) => Promise<Response>
 
-export type SendMessage = (message: Message) => Promise<void>
+export type SendNotification = (notification: Notification) => Promise<void>
 
 const requestTimeoutMs = 30_000
 
-/** Hands a Message to Shion. Returning means it was delivered; throwing means it was not. */
+/** Hands a Notification to Shion. Returning means it was delivered; throwing means it was not. */
 export function createShionSender(
   shionUrl: string,
   apiToken: string,
   fetchImpl: Fetch = fetch,
-): SendMessage {
-  return async message => {
+): SendNotification {
+  return async notification => {
     const response = await fetchImpl(`${shionUrl}/v1/messages`, {
       method: 'POST',
       headers: { authorization: `Bearer ${apiToken}`, 'content-type': 'application/json' },
-      body: JSON.stringify(message),
+      body: JSON.stringify(notification),
       signal: AbortSignal.timeout(requestTimeoutMs),
     })
 

@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { createJsonStateStore, type Message, type StateStore } from '@shion/watcher-kit'
+import { createJsonStateStore, type Notification, type StateStore } from '@shion/watcher-kit'
 import { type Catalog, CatalogError, type CatalogRead, type Snapshot } from '../src/catalog'
 import { stateVersion, type WatcherState } from '../src/state'
 import { createWatcher } from '../src/watcher'
@@ -61,7 +61,7 @@ function fakeCatalog(initial: Snapshot) {
 }
 
 function fakeShion() {
-  const sent: Message[] = []
+  const sent: Notification[] = []
   let failing = false
 
   return {
@@ -69,9 +69,9 @@ function fakeShion() {
     setFailing: (value: boolean) => {
       failing = value
     },
-    send: async (message: Message) => {
+    send: async (notification: Notification) => {
       if (failing) throw new Error('Shion returned 502: Cannot send messages to this user')
-      sent.push(message)
+      sent.push(notification)
     },
   }
 }
@@ -105,7 +105,7 @@ describe('createWatcher', () => {
     expect(store.current).toEqual(seeded)
   })
 
-  test('retries the first Message rather than starting silently', async () => {
+  test('retries the first Notification rather than starting silently', async () => {
     const { store, shion, watcher } = setup()
     shion.setFailing(true)
 
@@ -134,7 +134,7 @@ describe('createWatcher', () => {
     expect(store.saves).toBe(0)
   })
 
-  test('sends all of a poll’s changes as one Message and remembers them', async () => {
+  test('sends all of a poll’s changes as one Notification and remembers them', async () => {
     const { store, catalog, shion, watcher } = setup(seeded)
     const next = snapshot(['big-pickle', 'jev-1.13-free'], ['glm-5.3', 'omen-alpha'])
     catalog.set(next)
@@ -214,7 +214,7 @@ describe('createWatcher', () => {
     catalog.set(snapshot(['big-pickle', 'jev-1.13-free']))
     await watcher.poll()
 
-    expect(shion.sent.map(message => message.level)).toEqual(['warning', 'info', 'info'])
+    expect(shion.sent.map(notification => notification.level)).toEqual(['warning', 'info', 'info'])
     expect(shion.sent[1]?.text).toContain('again')
     expect(shion.sent[2]?.text).toContain('jev-1.13-free')
   })
@@ -233,7 +233,7 @@ describe('createWatcher', () => {
   })
 })
 
-describe('createJsonStateStore with the watcher’s state', () => {
+describe('createJsonStateStore with the Watcher’s state', () => {
   test('round-trips the catalog through a file, creating its folder', async () => {
     const directory = await mkdtemp(join(tmpdir(), 'opencode-watcher-'))
     const path = join(directory, 'nested', 'state.json')

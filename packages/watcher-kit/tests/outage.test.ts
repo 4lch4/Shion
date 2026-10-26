@@ -1,9 +1,9 @@
 import { describe, expect, test } from 'bun:test'
-import type { Message } from '../src/message'
+import type { Notification } from '../src/notification'
 import { createOutageReporter } from '../src/outage'
 
 function fakeShion() {
-  const sent: Message[] = []
+  const sent: Notification[] = []
   let failing = false
 
   return {
@@ -11,9 +11,9 @@ function fakeShion() {
     setFailing: (value: boolean) => {
       failing = value
     },
-    send: async (message: Message) => {
+    send: async (notification: Notification) => {
       if (failing) throw new Error('Shion returned 502: Cannot send messages to this user')
-      sent.push(message)
+      sent.push(notification)
     },
   }
 }
@@ -74,7 +74,7 @@ describe('createOutageReporter', () => {
     await reporter.recovered()
     await reporter.recovered()
 
-    expect(shion.sent.map(message => message.level)).toEqual(['warning', 'info'])
+    expect(shion.sent.map(notification => notification.level)).toEqual(['warning', 'info'])
     expect(shion.sent[1]?.text).toBe("Checking OpenCode's models again.")
   })
 
@@ -85,12 +85,12 @@ describe('createOutageReporter', () => {
     shion.setFailing(true)
     await reporter.recovered()
 
-    expect(shion.sent.map(message => message.level)).toEqual(['warning'])
+    expect(shion.sent.map(notification => notification.level)).toEqual(['warning'])
 
     shion.setFailing(false)
     await reporter.recovered()
 
-    expect(shion.sent.map(message => message.level)).toEqual(['warning', 'info'])
+    expect(shion.sent.map(notification => notification.level)).toEqual(['warning', 'info'])
   })
 
   test('stringifies errors that are not Errors', async () => {

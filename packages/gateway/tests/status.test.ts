@@ -125,7 +125,7 @@ describe('GET /v1/status', () => {
     })
   })
 
-  test('counts the deprecated /v1/messages alias, and repeats the counters as messages', async () => {
+  test('counts /v1/messages too, and repeats the counters as messages', async () => {
     const api = buildHarness()
 
     await api.handle(notificationRequest())

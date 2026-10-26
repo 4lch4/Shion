@@ -53,7 +53,7 @@ function deliveryRoute(
 }
 
 // `/messages` is the route's name from before Message was renamed Notification
-// (ADR 5). It stays as a deprecated alias so existing Callers, and a rollback
+// (ADR 6). It stays as a deprecated alias so existing Callers, and a rollback
 // to a version without `/notifications`, keep working.
 export function notificationsRoute(deliver: Deliver, counters: Counters) {
   return new Elysia().use(deliveryRoute('/notifications', deliver, counters)).use(

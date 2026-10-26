@@ -117,7 +117,7 @@ function describeChange(change: Change): string {
   }
 }
 
-/** Joins lines into a Message's text, dropping whole lines from the end to fit Shion's limit. */
+/** Joins lines into a Notification's text, dropping lines from the end to fit Shion's limit. */
 export function fitLines(lines: readonly string[]): string {
   const full = lines.join('\n')
 
@@ -167,7 +167,7 @@ export function formatChanges(changes: readonly Change[]): string {
   )
 }
 
-/** The first Message: what's free right now, so the Recipient knows the watcher is running. */
+/** The first Notification: what's free right now, so the Recipient knows the Watcher is running. */
 export function formatBaseline(snapshot: Snapshot): string {
   const free = sections(plan =>
     snapshot[plan].live
@@ -176,7 +176,7 @@ export function formatBaseline(snapshot: Snapshot): string {
   )
 
   return fitLines([
-    "Watching OpenCode's models. I'll send a Message when one is added, removed, repriced or deprecated.",
+    "Watching OpenCode's models. I'll let you know when one is added, removed, repriced or deprecated.",
     '',
     ...(free.length > 0 ? ['Free right now:', '', ...free] : ['No free models right now.']),
   ])

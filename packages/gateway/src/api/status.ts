@@ -7,7 +7,7 @@ export function statusRoute(gateway: GatewayStatus, counters: Counters) {
     status: gateway.isReady() ? ('ready' as const) : ('degraded' as const),
     bot: { tag: gateway.tag(), uptimeMs: gateway.uptimeMs() },
     notifications: { ...counters },
-    // Deprecated: the same counters under their name from before ADR 5.
+    // Deprecated: the same counters under their name from before ADR 6.
     messages: { ...counters },
     uptimeMs: Math.round(process.uptime() * 1000),
   }))

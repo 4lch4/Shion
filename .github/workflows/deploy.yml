@@ -146,7 +146,7 @@ jobs:
           # to reconnect to Discord before giving up. This uses the deprecated
           # /v1/messages rather than /v1/notifications on purpose: a rollback
           # can land on a version older than 0.3.0, which has only /v1/messages
-          # (ADR 5).
+          # (ADR 6).
           jq -n --arg level "$level" --arg text "${text:0:2000}" \
             '{source: "github-actions", level: $level, text: $text}' |
             curl -fsS --retry 10 --retry-all-errors --retry-delay 3 \

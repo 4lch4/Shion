@@ -5,7 +5,7 @@ name: CI
 # A pull request that changes a package also needs a changeset, or the
 # `changeset` job fails. Docs-only and CI-only work needs none, and the job
 # rejects an empty changeset: while one is pending on main, changesets/action
-# neither opens the Version Packages PR nor publishes. ADR 4 has the
+# neither opens the Version Packages pull request nor publishes. ADR 4 has the
 # reasoning.
 on:
   push:
@@ -80,7 +80,7 @@ jobs:
         run: bunx changeset status --since=origin/main
 
       # An empty changeset releases nothing, but while one is pending on main
-      # changesets/action stops: no Version Packages PR, and no publish.
+      # changesets/action stops: no Version Packages pull request, and no publish.
       - name: Reject empty changesets
         run: |
           status=0

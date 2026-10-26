@@ -1,4 +1,4 @@
-# 5. Shion is a notification hub, and a Message is now a Notification
+# 6. Shion is a notification hub, and a Message is now a Notification
 
 Status: accepted
 
@@ -32,11 +32,13 @@ place calls what it sends me a notification.
 - **Guild and server.** A Discord server is a guild. A bare "server" is the machine Shion is
   deployed to.
 - **The docs speak in first person.** `CONTEXT.md` stays neutral, with Recipient as the term.
+- **Watcher is capitalized** like the other domain terms: "the Watcher", "the OpenCode Watcher".
+  Package and image names such as `opencode-watcher` stay lowercase.
 - **The Gateway's names stay as they are**: folder `packages/gateway`, package `shion`, image
   `4lch4/shion-bot`, Compose service `bot`, network alias `shion-gateway`. Renaming the package
   would restart the tag series, and ADR 4 kept the image name for its Docker Hub history.
 
-ADRs 1 to 4 keep their wording. Read their "Message" as Notification.
+ADRs 1 to 5 keep their wording. Read their "Message" as Notification.
 
 ## Consequences
 
@@ -44,11 +46,13 @@ ADRs 1 to 4 keep their wording. Read their "Message" as Notification.
   avoids the break entirely, so no `/v2` is needed.
 - `deploy.yml` keeps posting to `/v1/messages`. A deploy can roll back to a version older than
   0.3.0, which has no `/v1/notifications`, and the deploy Notification must still arrive.
+- `watcher-kit` renames its type to `Notification` but keeps posting to `/v1/messages` for the same
+  reason. Watchers deploy separately from the Gateway and in no fixed order, so a Watcher can meet
+  a Gateway older than 0.3.0. It moves to `/v1/notifications` in a later release, once the Gateway
+  at 0.3.0 or newer is the only one it could meet.
 - `/v1/messages` and the `messages` counters can go once nothing calls them: Watchers and
   `deploy.yml` have moved, and no version a deploy could roll back to lacks `/v1/notifications`.
   That removal is a breaking change for the Gateway.
-- The Watcher work in [Shion#23](https://github.com/4lch4/Shion/pull/23) should call
-  `/v1/notifications` and use the new term.
 
 ## Alternatives considered
 

@@ -98,7 +98,7 @@ Swagger UI, served by `@elysia/openapi`, can load; its **Authorize** button take
 | `GET /docs/json`         | OpenAPI specification                       |
 
 `/v1/messages` is the route's name from before Message was renamed Notification
-([ADR 5](./docs/adr/0005-notification-hub-terminology.md)). It behaves exactly like
+([ADR 6](./docs/adr/0006-notification-hub-terminology.md)). It behaves exactly like
 `/v1/notifications` and stays until no Caller, and no version a deploy could roll back to, needs it.
 
 ### `POST /v1/notifications`

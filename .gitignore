@@ -25,5 +25,5 @@ pnpm-debug.log*
 
 archive/
 
-# OpenCode watcher state and heartbeat when run locally
+# OpenCode Watcher state and heartbeat when run locally
 packages/opencode-watcher/data/

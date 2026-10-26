@@ -100,6 +100,6 @@ keeps the three public URLs where they are.
   outcome that is neither delivery nor reported failure. That directly contradicts
   `CONTEXT.md`, and none of it is needed while Shion serves one person.
 - **`new Elysia({ prefix: '/v1' })` with the old Swagger plugin's spec path worked around by hand.**
-  Rejected in favor of `.group()`: the workaround depended on plugin internals, and the fix history
+  Rejected in favour of `.group()`: the workaround depended on plugin internals, and the fix history
   shows it regressing between releases. `@elysia/openapi` removed the plugin's half of the problem,
   but the instance prefix would still move `/docs`, `/docs/json` and `/health` under `/v1`.
