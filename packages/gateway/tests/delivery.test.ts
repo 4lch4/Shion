@@ -68,6 +68,16 @@ describe('createDmDeliverer', () => {
     })
   })
 
+  test('marks when Delivery happened with a Discord timestamp', async () => {
+    const { directory, sent } = fakeDirectory()
+
+    await createDmDeliverer(directory, 'recipient-id')(notification)
+
+    const sentField = embedOf(sent[0])?.fields?.find(field => field.name === 'Sent')
+
+    expect(sentField?.value).toMatch(/^<t:\d+:f>$/)
+  })
+
   test('each Level renders with its own color', async () => {
     const { directory, sent } = fakeDirectory()
     const deliver = createDmDeliverer(directory, 'recipient-id')
