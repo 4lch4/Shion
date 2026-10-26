@@ -6,8 +6,9 @@ name: Dependabot Changeset
 # package.
 #
 # The packages it patches are the ones with files changed under packages/. A
-# root-only change, such as bun.lock or a workflow, belongs to every package
-# that ships an image.
+# root-only change, such as bun.lock, belongs to every package that ships an
+# image. A change only under .github/, such as a GitHub Actions update, is in
+# no image, so it gets no changeset and releases nothing.
 #
 # This runs on pull_request_target, so it has the base repository's secrets for
 # a pull request from a fork. It must never run code from the pull request:
@@ -71,8 +72,15 @@ jobs:
           fi
 
           git fetch --no-tags origin "+refs/heads/$BASE_REF:refs/remotes/origin/$BASE_REF"
-          dirs="$(git diff --name-only "origin/$BASE_REF...HEAD" |
-            sed -n 's|^packages/\([^/]*\)/.*|\1|p' | sort -u)"
+          changed="$(git diff --name-only "origin/$BASE_REF...HEAD")"
+
+          if ! grep -qv '^\.github/' <<< "$changed"; then
+            echo 'skip=true' >> "$GITHUB_OUTPUT"
+            echo 'The pull request changes only .github/; nothing to release'
+            exit 0
+          fi
+
+          dirs="$(sed -n 's|^packages/\([^/]*\)/.*|\1|p' <<< "$changed" | sort -u)"
 
           names=()
           if [[ -n "$dirs" ]]; then
