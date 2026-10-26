@@ -1,26 +1,26 @@
-// The Gateway accepts a Message body only if it matches `messageBodySchema`. Watchers send that
-// body from the kit's own copy of the type, so the two copies can drift without either package
-// noticing: the Gateway would answer 422 and a Watcher would report it as a delivery failure.
-// This checks the copies agree, and that the text the OpenCode watcher really builds fits the
-// Gateway's 2000-character limit. The packages don't depend on each other; this test imports both
-// by path.
+// The Gateway accepts a Notification body only if it matches `notificationBodySchema`. Watchers
+// send that body from the kit's own copy of the type, so the two copies can drift without either
+// package noticing: the Gateway would answer 422 and a Watcher would report it as a delivery
+// failure. This checks the copies agree, and that the text the OpenCode Watcher really builds fits
+// the Gateway's 2000-character limit. The packages don't depend on each other; this test imports
+// both by path.
 import { describe, expect, test } from 'bun:test'
 import { Value } from '@sinclair/typebox/value'
-import { messageBodySchema } from '../packages/gateway/src/api/schema'
+import { notificationBodySchema } from '../packages/gateway/src/api/schema'
 import { formatBaseline } from '../packages/opencode-watcher/src/changes'
 import {
   createOutageReporter,
   levels,
-  type Message,
   maxTextLength,
+  type Notification,
 } from '../packages/watcher-kit/src/index'
 
-function validates(message: Message): boolean {
-  return Value.Check(messageBodySchema, message)
+function validates(notification: Notification): boolean {
+  return Value.Check(notificationBodySchema, notification)
 }
 
-describe('the watcher-kit Message and the Gateway’s request schema', () => {
-  test('the baseline the OpenCode watcher sends on its first run', () => {
+describe('the watcher-kit Notification and the Gateway’s request schema', () => {
+  test('the baseline the OpenCode Watcher sends on its first run', () => {
     const text = formatBaseline({
       zen: {
         live: ['big-pickle', 'jev-1.13-free'],
@@ -36,12 +36,12 @@ describe('the watcher-kit Message and the Gateway’s request schema', () => {
   })
 
   test('the outage warning and recovery the kit builds', async () => {
-    const sent: Message[] = []
+    const sent: Notification[] = []
     const reporter = createOutageReporter({
       source: 'opencode/models',
       subject: "OpenCode's models",
-      send: async message => {
-        sent.push(message)
+      send: async notification => {
+        sent.push(notification)
       },
       log: () => {},
     })
@@ -49,10 +49,10 @@ describe('the watcher-kit Message and the Gateway’s request schema', () => {
     await reporter.failed(new Error('https://models.dev/api.json returned 503'))
     await reporter.recovered()
 
-    expect(sent.map(message => message.level)).toEqual(['warning', 'info'])
+    expect(sent.map(notification => notification.level)).toEqual(['warning', 'info'])
 
-    for (const message of sent) {
-      expect(validates(message)).toBe(true)
+    for (const notification of sent) {
+      expect(validates(notification)).toBe(true)
     }
   })
 
@@ -69,16 +69,16 @@ describe('the watcher-kit Message and the Gateway’s request schema', () => {
     expect(validates({ source, level: 'info', text: 'a'.repeat(maxTextLength + 1) })).toBe(false)
   })
 
-  test('a Message the Gateway would refuse is caught, so the check is real', () => {
+  test('a Notification the Gateway would refuse is caught, so the check is real', () => {
     expect(
-      Value.Check(messageBodySchema, {
+      Value.Check(notificationBodySchema, {
         source: 'opencode/models',
         level: 'critical',
         text: '',
       }),
     ).toBe(false)
     expect(
-      Value.Check(messageBodySchema, {
+      Value.Check(notificationBodySchema, {
         source: '',
         level: 'info',
         text: 'hi',

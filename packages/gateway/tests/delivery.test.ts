@@ -1,9 +1,9 @@
 import { describe, expect, test } from 'bun:test'
 import { EmbedBuilder, type MessageCreateOptions } from 'discord.js'
 import { createDmDeliverer } from '../src/delivery'
-import { levels, type Message } from '../src/message'
+import { levels, type Notification } from '../src/notification'
 
-const message: Message = {
+const notification: Notification = {
   source: 'grafana',
   level: 'info',
   text: 'disk almost full',
@@ -40,7 +40,7 @@ describe('createDmDeliverer', () => {
   test('delivers to the Recipient it was configured with', async () => {
     const { directory, fetched, sent } = fakeDirectory()
 
-    await createDmDeliverer(directory, 'recipient-id')(message)
+    await createDmDeliverer(directory, 'recipient-id')(notification)
 
     expect(fetched).toEqual(['recipient-id'])
     expect(sent).toHaveLength(1)
@@ -50,8 +50,8 @@ describe('createDmDeliverer', () => {
     const { directory, fetched } = fakeDirectory()
     const deliver = createDmDeliverer(directory, 'recipient-id')
 
-    await deliver({ ...message, source: 'some-other-agent' })
-    await deliver({ ...message, source: 'some-other-agent' })
+    await deliver({ ...notification, source: 'some-other-agent' })
+    await deliver({ ...notification, source: 'some-other-agent' })
 
     expect(fetched).toEqual(['recipient-id', 'recipient-id'])
   })
@@ -59,7 +59,7 @@ describe('createDmDeliverer', () => {
   test('embeds the text with the Source as the author', async () => {
     const { directory, sent } = fakeDirectory()
 
-    await createDmDeliverer(directory, 'recipient-id')(message)
+    await createDmDeliverer(directory, 'recipient-id')(notification)
 
     expect(embedOf(sent[0])).toMatchObject({
       description: 'disk almost full',
@@ -68,12 +68,12 @@ describe('createDmDeliverer', () => {
     })
   })
 
-  test('each Level renders with its own colour', async () => {
+  test('each Level renders with its own color', async () => {
     const { directory, sent } = fakeDirectory()
     const deliver = createDmDeliverer(directory, 'recipient-id')
 
     for (const level of levels) {
-      await deliver({ ...message, level })
+      await deliver({ ...notification, level })
     }
 
     expect(sent.map(payload => embedOf(payload)?.color)).toEqual([0x5865f2, 0xfaa61a, 0xed4245])
@@ -92,7 +92,7 @@ describe('createDmDeliverer', () => {
       'recipient-id',
     )
 
-    expect(deliver(message)).rejects.toThrow('Cannot send messages to this user')
+    expect(deliver(notification)).rejects.toThrow('Cannot send messages to this user')
   })
 
   test('propagates a failure to deliver', async () => {
@@ -107,6 +107,6 @@ describe('createDmDeliverer', () => {
       'recipient-id',
     )
 
-    expect(deliver(message)).rejects.toThrow('Missing Access')
+    expect(deliver(notification)).rejects.toThrow('Missing Access')
   })
 })

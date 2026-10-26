@@ -22,20 +22,20 @@ function fakeFetch(routes: Record<string, () => Response | Promise<Response>>) {
   }
 }
 
-const message = { source: 'opencode/models', level: 'info' as const, text: 'hi' }
+const notification = { source: 'opencode/models', level: 'info' as const, text: 'hi' }
 
 describe('createShionSender', () => {
-  test('posts the Message to /v1/messages with the API token', async () => {
+  test('posts the Notification to /v1/messages with the API token', async () => {
     const { calls, fetch } = fakeFetch({
       'http://shion-gateway:3000/v1/messages': () => json({ status: 'delivered' }),
     })
 
-    await createShionSender('http://shion-gateway:3000', 'api-token', fetch)(message)
+    await createShionSender('http://shion-gateway:3000', 'api-token', fetch)(notification)
 
     expect(calls[0]?.init?.method).toBe('POST')
     expect(new Headers(calls[0]?.init?.headers).get('authorization')).toBe('Bearer api-token')
     expect(new Headers(calls[0]?.init?.headers).get('content-type')).toBe('application/json')
-    expect(JSON.parse(String(calls[0]?.init?.body))).toEqual(message)
+    expect(JSON.parse(String(calls[0]?.init?.body))).toEqual(notification)
   })
 
   test('throws with Shion’s reason when delivery fails', async () => {
@@ -48,7 +48,7 @@ describe('createShionSender', () => {
     })
 
     await expect(
-      createShionSender('http://shion-gateway:3000', 'api-token', fetch)(message),
+      createShionSender('http://shion-gateway:3000', 'api-token', fetch)(notification),
     ).rejects.toThrow('Shion returned 502: Cannot send messages to this user')
   })
 
@@ -59,7 +59,7 @@ describe('createShionSender', () => {
     })
 
     await expect(
-      createShionSender('http://shion-gateway:3000', 'api-token', fetch)(message),
+      createShionSender('http://shion-gateway:3000', 'api-token', fetch)(notification),
     ).rejects.toThrow('Shion returned 429: Too Many Requests')
   })
 })

@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import { buildApi } from '../src/api'
 import type { GatewayStatus } from '../src/bot'
 import type { Deliver } from '../src/delivery'
-import { levels, type Message } from '../src/message'
+import { levels, type Notification } from '../src/notification'
 
 const apiToken = 'test-token'
 
@@ -16,14 +16,14 @@ function buildHarness(deliver: Deliver) {
   return buildApi({ deliver, gateway, apiToken })
 }
 
-function post(body: unknown, token: string | null = apiToken): Request {
+function post(body: unknown, token: string | null = apiToken, path = '/v1/notifications'): Request {
   const headers: Record<string, string> = { 'content-type': 'application/json' }
 
   if (token !== null) {
     headers.authorization = `Bearer ${token}`
   }
 
-  return new Request('http://localhost/v1/messages', {
+  return new Request(`http://localhost${path}`, {
     method: 'POST',
     headers,
     body: JSON.stringify(body),
@@ -31,17 +31,17 @@ function post(body: unknown, token: string | null = apiToken): Request {
 }
 
 function recorder() {
-  const delivered: Message[] = []
+  const delivered: Notification[] = []
 
-  const deliver: Deliver = async message => {
-    delivered.push(message)
+  const deliver: Deliver = async notification => {
+    delivered.push(notification)
   }
 
   return { delivered, deliver }
 }
 
-describe('POST /v1/messages', () => {
-  test('delivers a Message and reports it', async () => {
+describe('POST /v1/notifications', () => {
+  test('delivers a Notification and reports it', async () => {
     const { delivered, deliver } = recorder()
     const api = buildHarness(deliver)
 
@@ -77,7 +77,7 @@ describe('POST /v1/messages', () => {
       expect(response.status).toBe(200)
     }
 
-    expect(delivered.map(message => message.level)).toEqual([...levels])
+    expect(delivered.map(notification => notification.level)).toEqual([...levels])
   })
 
   test('rejects a Level outside the known set', async () => {
@@ -90,13 +90,13 @@ describe('POST /v1/messages', () => {
     expect(delivered).toEqual([])
   })
 
-  test('rejects a Message with no Source', async () => {
+  test('rejects a Notification with no Source', async () => {
     const api = buildHarness(recorder().deliver)
 
     expect((await api.handle(post({ text: 'b' }))).status).toBe(422)
   })
 
-  test('rejects a Message with no text', async () => {
+  test('rejects a Notification with no text', async () => {
     const api = buildHarness(recorder().deliver)
 
     expect((await api.handle(post({ source: 'a' }))).status).toBe(422)
@@ -148,7 +148,7 @@ describe('POST /v1/messages', () => {
     const api = buildHarness(recorder().deliver)
 
     const response = await api.handle(
-      new Request('http://localhost/v1/messages', {
+      new Request('http://localhost/v1/notifications', {
         method: 'POST',
         headers: { authorization: 'Basic nonsense', 'content-type': 'application/json' },
         body: JSON.stringify({ source: 'a', text: 'b' }),
@@ -194,7 +194,7 @@ describe('POST /v1/messages', () => {
     const api = buildHarness(recorder().deliver)
 
     const response = await api.handle(
-      new Request('http://localhost/v1/messages', {
+      new Request('http://localhost/v1/notifications', {
         headers: { authorization: `Bearer ${apiToken}` },
       }),
     )
@@ -205,13 +205,37 @@ describe('POST /v1/messages', () => {
   test('404s an unknown path', async () => {
     const api = buildHarness(recorder().deliver)
 
-    expect((await api.handle(new Request('http://localhost/v1/messges'))).status).toBe(404)
+    expect((await api.handle(new Request('http://localhost/v1/notifcations'))).status).toBe(404)
   })
 
   test('the endpoints are not mounted at the root', async () => {
     const api = buildHarness(recorder().deliver)
 
+    expect((await api.handle(new Request('http://localhost/notifications'))).status).toBe(404)
     expect((await api.handle(new Request('http://localhost/messages'))).status).toBe(404)
     expect((await api.handle(new Request('http://localhost/status'))).status).toBe(404)
+  })
+})
+
+describe('POST /v1/messages', () => {
+  test('still delivers, as a deprecated alias of /v1/notifications', async () => {
+    const { delivered, deliver } = recorder()
+    const api = buildHarness(deliver)
+
+    const response = await api.handle(post({ source: 'a', text: 'b' }, apiToken, '/v1/messages'))
+
+    expect(response.status).toBe(200)
+    expect(delivered).toEqual([{ source: 'a', level: 'info', text: 'b' }])
+    expect(await response.json()).toMatchObject({ status: 'delivered' })
+  })
+
+  test('requires the API token', async () => {
+    const { delivered, deliver } = recorder()
+    const api = buildHarness(deliver)
+
+    const response = await api.handle(post({ source: 'a', text: 'b' }, null, '/v1/messages'))
+
+    expect(response.status).toBe(401)
+    expect(delivered).toEqual([])
   })
 })

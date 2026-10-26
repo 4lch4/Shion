@@ -81,7 +81,7 @@ describe('loadConfig', () => {
     })
   })
 
-  test('honours an explicit port and host', () => {
+  test('honors an explicit port and host', () => {
     expect(
       loadConfig({ ...gatewayEnvironment, API_PORT: '8080', API_HOST: '127.0.0.1' }),
     ).toMatchObject({ apiPort: 8080, apiHost: '127.0.0.1' })

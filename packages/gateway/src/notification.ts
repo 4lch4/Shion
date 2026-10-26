@@ -4,7 +4,7 @@ export const levels = ['info', 'warning', 'critical'] as const
 
 export type Level = (typeof levels)[number]
 
-export interface Message {
+export interface Notification {
   readonly source: string
   readonly level: Level
   readonly text: string
@@ -22,12 +22,12 @@ export function levelColor(level: Level): number {
   return levelColors[level]
 }
 
-export function toEmbed(message: Message): EmbedBuilder {
+export function toEmbed(notification: Notification): EmbedBuilder {
   return new EmbedBuilder()
-    .setColor(levelColor(message.level))
-    .setTitle(message.level.toUpperCase())
-    .setAuthor({ name: message.source })
-    .setDescription(message.text)
+    .setColor(levelColor(notification.level))
+    .setTitle(notification.level.toUpperCase())
+    .setAuthor({ name: notification.source })
+    .setDescription(notification.text)
     .setFooter({ text: 'Shion' })
     .setTimestamp()
 }

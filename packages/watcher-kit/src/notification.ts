@@ -1,4 +1,4 @@
-/** How a Message looks when it arrives. It never decides whether it arrives. */
+/** How a Notification looks when it arrives. It never decides whether it arrives. */
 export const levels = ['info', 'warning', 'critical'] as const
 
 export type Level = (typeof levels)[number]
@@ -9,11 +9,11 @@ export type Level = (typeof levels)[number]
  * every Watcher with it. A test at the repository root checks this copy against the Gateway's
  * schema so the two can't drift apart unnoticed.
  */
-export interface Message {
+export interface Notification {
   readonly source: string
   readonly level: Level
   readonly text: string
 }
 
-/** Shion's limit on a Message's text, which is Discord's. */
+/** Shion's limit on a Notification's text, which is Discord's. */
 export const maxTextLength = 2000

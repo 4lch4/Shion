@@ -40,7 +40,7 @@ describe('GET /health', () => {
     expect(response.status).not.toBe(401)
   })
 
-  test('says nothing about the bot or Message counters', async () => {
+  test('says nothing about the bot or Notification counters', async () => {
     const api = buildApi({ deliver: noop, gateway: ready, apiToken: 'test-token' })
     const body = (await (await api.handle(healthRequest())).json()) as Record<string, unknown>
 

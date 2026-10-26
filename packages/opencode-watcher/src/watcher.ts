@@ -1,7 +1,7 @@
 import {
   createOutageReporter,
   describeError,
-  type SendMessage,
+  type SendNotification,
   type StateStore,
 } from '@shion/watcher-kit'
 import type { Catalog, CatalogRead } from './catalog'
@@ -10,7 +10,7 @@ import { stateVersion, type WatcherState } from './state'
 
 export interface WatcherDeps {
   readonly catalog: Catalog
-  readonly send: SendMessage
+  readonly send: SendNotification
   readonly store: StateStore<WatcherState>
   readonly source: string
   readonly log?: (line: string) => void
@@ -62,7 +62,9 @@ export function createWatcher(deps: WatcherDeps): Watcher {
         try {
           await send({ source, level: 'info', text: formatBaseline(current.snapshot) })
         } catch (error) {
-          log(`Could not deliver the first Message; retrying next poll: ${describeError(error)}`)
+          log(
+            `Could not deliver the first Notification; retrying next poll: ${describeError(error)}`,
+          )
 
           return { delivered: 0 }
         }

@@ -1,10 +1,10 @@
-// The OpenCode watcher: a Source that polls which models OpenCode's Zen and Go plans offer and
-// hands each change to the Gateway as a Message. It runs as its own app and image; see
+// The OpenCode Watcher: a Source that polls which models OpenCode's Zen and Go plans offer and
+// hands each change to the Gateway as a Notification. It runs as its own app and image; see
 // docs/adr/0004-watchers-as-separate-images.md.
 //
 // A bad config logs the reason and exits non-zero, so `deploy-app`'s `--wait` fails and rolls back
 // only this Watcher. Problems at run time, such as OpenCode or the Gateway being unreachable, are
-// reported as Messages and polling carries on.
+// reported as Notifications and polling carries on.
 import {
   createHeartbeat,
   createJsonStateStore,
@@ -21,7 +21,7 @@ function loadConfigOrExit(): OpenCodeWatcherConfig {
   try {
     return loadOpenCodeWatcherConfig()
   } catch (error) {
-    console.error(`OpenCode watcher is not configured: ${describeError(error)}`)
+    console.error(`OpenCode Watcher is not configured: ${describeError(error)}`)
 
     process.exit(1)
   }
@@ -39,7 +39,7 @@ async function main(): Promise<void> {
 
   await heartbeat.touch()
   console.log(
-    `OpenCode watcher polling every ${config.pollIntervalMs / 1000}s, sending to ${config.shionUrl}.`,
+    `OpenCode Watcher polling every ${config.pollIntervalMs / 1000}s, sending to ${config.shionUrl}.`,
   )
 
   await runWatcher({
@@ -62,6 +62,6 @@ async function main(): Promise<void> {
 try {
   await main()
 } catch (error) {
-  console.error('OpenCode watcher stopped.', error)
+  console.error('OpenCode Watcher stopped.', error)
   process.exitCode = 1
 }

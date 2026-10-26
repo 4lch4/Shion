@@ -7,7 +7,7 @@ export interface GatewayStatus {
   uptimeMs(): number
 }
 
-export function createGatewayClient(): Client {
+export function createDiscordClient(): Client {
   const client = new Client({
     intents: [GatewayIntentBits.Guilds, GatewayIntentBits.DirectMessages],
   })

@@ -1,12 +1,12 @@
-# OpenCode watcher
+# OpenCode Watcher
 
-The OpenCode watcher is a Watcher: a Source that runs on its own, polls the models OpenCode offers
-and sends a Message when they change. It is not part of the Gateway. It calls
+The OpenCode Watcher is a Watcher: a Source that runs on its own, polls the models OpenCode offers
+and sends a Notification when they change. It is not part of the Gateway. It calls
 `POST /v1/messages` like any other Source, and it ships as its own image and its own app on the
 server, so a Watcher change never releases or restarts the Gateway. [ADR 4][adr-4] explains why.
 
 - **Source:** `opencode/models`. **Level:** `info`.
-- **When:** every 5 minutes. All the changes one poll finds go in one Message, grouped by plan.
+- **When:** every 5 minutes. All the changes one poll finds go in one Notification, grouped by plan.
 - **Cost:** nothing. Every source is public and needs no account or key.
 
 [adr-4]: ../../docs/adr/0004-watchers-as-separate-images.md
@@ -28,13 +28,13 @@ status, and price or status changes are reported only for models that are live. 
 free when models.dev prices it at zero, or, if models.dev doesn't list it yet, when its ID ends in
 `-free`. The live lists' internal entries (`test`, anything ending in `-backup`) are ignored.
 
-models.dev is about 6 MB. The watcher sends its last ETag, so a poll where nothing changed gets a
+models.dev is about 6 MB. The Watcher sends its last ETag, so a poll where nothing changed gets a
 `304` with no body.
 
-A poll needs every source to answer. If one fails, the watcher sends nothing rather than reporting
+A poll needs every source to answer. If one fails, the Watcher sends nothing rather than reporting
 models as removed because one list was unreadable.
 
-## Message format
+## Notification format
 
 ```text
 **Zen**
@@ -47,31 +47,33 @@ New: `omen-alpha`
 ```
 
 Text is capped at 2000 characters, Shion's limit. When a poll finds more than fits, whole lines are
-dropped from the end and the Message says how many and links to models.dev.
+dropped from the end and the Notification says how many and links to models.dev.
 
 ## State and restarts
 
-The watcher keeps the catalog as of its last Message in `/app/data/opencode-watcher.json`, on the
-`opencode-watcher_data` volume. It writes the file to a temporary name and renames it, so a crash
-can't leave half a file. A restart or redeploy compares against that, so changes are not sent twice
-and changes made while it was down are not missed.
+The Watcher keeps the catalog as of its last Notification in `/app/data/opencode-watcher.json`, on
+the `opencode-watcher_data` volume. It writes the file to a temporary name and renames it, so a
+crash can't leave half a file. A restart or redeploy compares against that, so changes are not sent
+twice and changes made while it was down are not missed.
 
-- The **first start** sends one Message listing what is free right now, then reports only changes.
-- If a Message **fails to deliver**, the watcher keeps the old catalog, so the next poll finds the
-  same changes and tries again.
+- The **first start** sends one Notification listing what is free right now, then reports only
+  changes.
+- If a Notification **fails to deliver**, the Watcher keeps the old catalog, so the next poll finds
+  the same changes and tries again.
 - `docker compose down -v` deletes the volume. The next start is a first start again, and changes
   made in between are not reported.
 
 ## Failures, the heartbeat, and fail-fast
 
 If a source can't be read — an HTTP error, a timeout, a response that isn't JSON, an empty model
-list — the watcher sends one `warning` Message from `opencode/models` and keeps polling quietly.
-When the sources answer again it sends one `info` Message to say so. A warning is retried until
-Shion accepts it, so a Gateway deploy in the middle of an outage doesn't lose it.
+list — the Watcher sends one `warning` Notification from `opencode/models` and keeps polling
+quietly. When the sources answer again it sends one `info` Notification to say so. A warning is
+retried until the Gateway accepts it, so a Gateway deploy in the middle of an outage doesn't lose
+it.
 
 Bad config is different: a missing `API_TOKEN`, an invalid poll interval or a state or heartbeat
 path it can't write logs the reason and exits non-zero. `deploy-app` waits on the healthcheck, so
-the deploy fails and rolls back only this Watcher. That is why the watcher does not idle on bad
+the deploy fails and rolls back only this Watcher. That is why the Watcher does not idle on bad
 config the way #18 did.
 
 A Watcher has no HTTP server, so its health is a heartbeat file, `/app/data/heartbeat` by default.
@@ -153,8 +155,8 @@ gh workflow run deploy.yml -f app=opencode-watcher -f version=0.1.0
 
 The same thing on the server is `sudo -u deploy deploy-app opencode-watcher 0.1.0`. The heartbeat is
 written before the first poll, so `--wait` passes well inside its 90-second timeout. The log should
-say `OpenCode watcher polling every 300s, sending to http://shion-gateway:3000.` and then
-`Watching <n> Zen and <n> Go models.`, and the first Message should arrive.
+say `OpenCode Watcher polling every 300s, sending to http://shion-gateway:3000.` and then
+`Watching <n> Zen and <n> Go models.`, and the first Notification should arrive.
 
 ## Configuration
 

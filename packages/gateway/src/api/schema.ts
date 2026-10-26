@@ -4,26 +4,32 @@ const levelLiterals = [t.Literal('info'), t.Literal('warning'), t.Literal('criti
 
 export const levelSchema = t.Union(levelLiterals)
 
-export const messageBodySchema = t.Object({
+export const notificationBodySchema = t.Object({
   source: t.String({
-    description: 'The Source that handed Shion this Message.',
+    description: 'The Source this Notification comes from.',
     maxLength: 64,
     minLength: 1,
   }),
   level: t.Union(levelLiterals, { default: 'info' }),
   text: t.String({
-    description: 'The body of the Message.',
+    description: 'The body of the Notification.',
     maxLength: 2000,
     minLength: 1,
   }),
 })
 
-export const messageResponseSchema = t.Object({
+export const notificationResponseSchema = t.Object({
   id: t.String(),
   source: t.String(),
   level: levelSchema,
   status: t.Literal('delivered'),
   deliveredAt: t.String(),
+})
+
+const countersSchema = t.Object({
+  accepted: t.Number(),
+  delivered: t.Number(),
+  failed: t.Number(),
 })
 
 export const statusResponseSchema = t.Object({
@@ -32,11 +38,9 @@ export const statusResponseSchema = t.Object({
     tag: t.Union([t.String(), t.Null()]),
     uptimeMs: t.Number(),
   }),
-  messages: t.Object({
-    accepted: t.Number(),
-    delivered: t.Number(),
-    failed: t.Number(),
-  }),
+  notifications: countersSchema,
+  // Deprecated: the same counters under their name from before ADR 6.
+  messages: countersSchema,
   uptimeMs: t.Number(),
 })
 

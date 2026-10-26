@@ -1,13 +1,13 @@
 import { once } from 'node:events'
 import { Events } from 'discord.js'
 import { buildApi } from './api'
-import { createGatewayClient, toGatewayStatus } from './bot'
+import { createDiscordClient, toGatewayStatus } from './bot'
 import { loadConfig } from './config'
 import { createDmDeliverer } from './delivery'
 
 async function main(): Promise<void> {
   const config = loadConfig()
-  const client = createGatewayClient()
+  const client = createDiscordClient()
 
   await client.login(config.token)
 

@@ -1,6 +1,6 @@
 # This Compose project is one app on the server, `opencode-watcher`, deployed on its own with
-# `deploy-app opencode-watcher <version>`. It is not part of Shion's project: the watcher reaches
-# the Gateway over the shared `shion` network, which exists before either starts.
+# `deploy-app opencode-watcher <version>`. It is not part of the Gateway's project: the Watcher
+# reaches the Gateway over the shared `shion` network, which exists before either starts.
 services:
   opencode-watcher:
     # IMAGE_TAG is set by `deploy-app` on the server, which pins an exact
@@ -18,11 +18,11 @@ services:
       # The Gateway's alias on the shared network, so a service called `bot` in
       # another project can't take its place in DNS.
       SHION_URL: http://shion-gateway:3000
-      # The catalog as of the last Message delivered. The heartbeat keeps its
+      # The catalog as of the last Notification delivered. The heartbeat keeps its
       # default at /app/data/heartbeat.
       OPENCODE_WATCHER_STATE_FILE: /app/data/opencode-watcher.json
     volumes:
-      # The catalog as of the last Message delivered, and the heartbeat the
+      # The catalog as of the last Notification delivered, and the heartbeat the
       # healthcheck reads. `docker compose down -v` deletes both.
       - data:/app/data
     networks:
@@ -51,7 +51,7 @@ volumes:
   data:
 
 networks:
-  # Created once on the server, because `docker compose down` in Shion's project
+  # Created once on the server, because `docker compose down` in the Gateway's project
   # would fail while a Watcher was attached to a network it owned.
   shion:
     external: true

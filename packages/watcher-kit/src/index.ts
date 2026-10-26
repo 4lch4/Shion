@@ -9,12 +9,12 @@ export {
 } from './config'
 export { describeError } from './errors'
 export { createHeartbeat, type Heartbeat } from './heartbeat'
-export { type Level, levels, type Message, maxTextLength } from './message'
+export { type Level, levels, maxTextLength, type Notification } from './notification'
 export {
   createOutageReporter,
   type OutageReporter,
   type OutageReporterOptions,
 } from './outage'
 export { type RunWatcherOptions, runWatcher } from './run'
-export { createShionSender, type Fetch, type SendMessage } from './shion'
+export { createShionSender, type Fetch, type SendNotification } from './shion'
 export { createJsonStateStore, type StateStore } from './state'

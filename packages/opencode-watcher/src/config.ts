@@ -12,7 +12,7 @@ export interface OpenCodeWatcherConfig extends ShionTarget {
   heartbeatFile: string
 }
 
-/** The Source the watcher's Messages come from. */
+/** The Source the Watcher's Notifications come from. */
 export const source = 'opencode/models'
 
 const defaultPollIntervalSeconds = 300
@@ -21,7 +21,7 @@ const defaultStateFile = 'data/opencode-watcher.json'
 const defaultHeartbeatFile = '/app/data/heartbeat'
 
 /**
- * Everything the watcher needs to start. A missing or invalid value throws: the entrypoint logs
+ * Everything the Watcher needs to start. A missing or invalid value throws: the entrypoint logs
  * it and exits non-zero, so the deploy fails and rolls back only this Watcher.
  */
 export function loadOpenCodeWatcherConfig(

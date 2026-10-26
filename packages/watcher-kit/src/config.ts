@@ -10,7 +10,7 @@ export interface PollInterval {
   readonly minimumSeconds: number
 }
 
-/** Where to send Messages, and the token that gets them in. */
+/** Where to send Notifications, and the token that gets them in. */
 export interface ShionTarget {
   readonly apiToken: string
   readonly shionUrl: string
@@ -49,7 +49,7 @@ export function requireValue(
 
 /**
  * The Gateway's address and the shared API token. A trailing slash on the URL is dropped, so the
- * sender can append `/v1/messages` without doubling it.
+ * `createShionSender` can append `/v1/messages` without doubling it.
  */
 export function loadShionTarget(environment: Environment = process.env): ShionTarget {
   return {

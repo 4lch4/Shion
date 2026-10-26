@@ -1,5 +1,5 @@
 import { describeError } from './errors'
-import type { SendMessage } from './shion'
+import type { SendNotification } from './shion'
 
 export interface OutageReporter {
   /** A poll failed. Sends one warning per outage, retrying until Shion accepts it. */
@@ -9,16 +9,16 @@ export interface OutageReporter {
 }
 
 export interface OutageReporterOptions {
-  readonly send: SendMessage
+  readonly send: SendNotification
   readonly source: string
-  /** What the Watcher checks, for the Message text, such as "OpenCode's models". */
+  /** What the Watcher checks, for the Notification text, such as "OpenCode's models". */
   readonly subject: string
   readonly log?: (line: string) => void
 }
 
 /**
  * Tells the Recipient when a Watcher can't do its job, and when it can again: one warning per
- * outage rather than one per poll, and one info Message on recovery. `failed` is called every
+ * outage rather than one per poll, and one info Notification on recovery. `failed` is called every
  * poll, so it stays quiet once the warning is out.
  */
 export function createOutageReporter(options: OutageReporterOptions): OutageReporter {
