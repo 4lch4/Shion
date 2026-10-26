@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.2
+
+### Patch Changes
+
+- [#24](https://github.com/4lch4/Shion/pull/24) [`53bc29a`](https://github.com/4lch4/Shion/commit/53bc29a152f673fdce5f75e4d87e6a0d843908fe) Thanks [@4lch4](https://github.com/4lch4)! - The Gateway now builds from a Bun workspace and joins the shared `shion` Docker network as
+  `shion-gateway`, so a Watcher can reach it at `http://shion-gateway:3000`.
+
 ## [0.2.1](https://github.com/4lch4/Shion/compare/v0.2.0...v0.2.1) (2026-10-23)
 
 
