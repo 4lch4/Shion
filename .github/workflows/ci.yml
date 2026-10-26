@@ -59,7 +59,7 @@ jobs:
 
   changeset:
     name: Changeset
-    # The Version Packages PR changes package versions, not packages, so it has
+    # The Version Packages pull request changes package versions, not packages, so it has
     # no changeset of its own.
     if: github.event_name == 'pull_request' && !startsWith(github.head_ref, 'changeset-release/')
     runs-on: ubuntu-latest

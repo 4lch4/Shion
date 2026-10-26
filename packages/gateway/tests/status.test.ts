@@ -27,8 +27,8 @@ function statusRequest(token: string | null = apiToken): Request {
   return new Request('http://localhost/v1/status', { headers })
 }
 
-function messageRequest(): Request {
-  return new Request('http://localhost/v1/messages', {
+function notificationRequest(path = '/v1/notifications'): Request {
+  return new Request(`http://localhost${path}`, {
     method: 'POST',
     headers: { authorization: `Bearer ${apiToken}`, 'content-type': 'application/json' },
     body: JSON.stringify({ source: 'a', text: 'b' }),
@@ -50,7 +50,7 @@ describe('GET /v1/status', () => {
     expect(await response.json()).toMatchObject({
       status: 'ready',
       bot: { tag: 'shion#0001', uptimeMs: 4321 },
-      messages: { accepted: 0, delivered: 0, failed: 0 },
+      notifications: { accepted: 0, delivered: 0, failed: 0 },
     })
   })
 
@@ -60,7 +60,7 @@ describe('GET /v1/status', () => {
     expect((await readStatus(api)).uptimeMs).toBeGreaterThanOrEqual(0)
   })
 
-  test('reports degraded when the gateway connection drops', async () => {
+  test('reports degraded when the Discord connection drops', async () => {
     const api = buildHarness({ ...ready, isReady: () => false })
 
     expect(await readStatus(api)).toMatchObject({ status: 'degraded' })
@@ -78,26 +78,26 @@ describe('GET /v1/status', () => {
     expect((await api.handle(statusRequest(null))).status).toBe(401)
   })
 
-  test('counts Messages it delivered', async () => {
+  test('counts Notifications it delivered', async () => {
     const api = buildHarness()
 
-    await api.handle(messageRequest())
-    await api.handle(messageRequest())
+    await api.handle(notificationRequest())
+    await api.handle(notificationRequest())
 
     expect(await readStatus(api)).toMatchObject({
-      messages: { accepted: 2, delivered: 2, failed: 0 },
+      notifications: { accepted: 2, delivered: 2, failed: 0 },
     })
   })
 
-  test('counts a Message it could not deliver', async () => {
+  test('counts a Notification it could not deliver', async () => {
     const api = buildHarness(ready, async () => {
       throw new Error('nope')
     })
 
-    await api.handle(messageRequest())
+    await api.handle(notificationRequest())
 
     expect(await readStatus(api)).toMatchObject({
-      messages: { accepted: 1, delivered: 0, failed: 1 },
+      notifications: { accepted: 1, delivered: 0, failed: 1 },
     })
   })
 
@@ -107,7 +107,7 @@ describe('GET /v1/status', () => {
     await api.handle(statusRequest('wrong-token'))
 
     expect(await readStatus(api)).toMatchObject({
-      messages: { accepted: 0, delivered: 0, failed: 0 },
+      notifications: { accepted: 0, delivered: 0, failed: 0 },
     })
   })
 
@@ -115,14 +115,25 @@ describe('GET /v1/status', () => {
     const first = buildHarness()
     const second = buildHarness()
 
-    await first.handle(messageRequest())
+    await first.handle(notificationRequest())
 
     expect(await readStatus(first)).toMatchObject({
-      messages: { accepted: 1, delivered: 1, failed: 0 },
+      notifications: { accepted: 1, delivered: 1, failed: 0 },
     })
     expect(await readStatus(second)).toMatchObject({
-      messages: { accepted: 0, delivered: 0, failed: 0 },
+      notifications: { accepted: 0, delivered: 0, failed: 0 },
     })
+  })
+
+  test('counts the deprecated /v1/messages alias, and repeats the counters as messages', async () => {
+    const api = buildHarness()
+
+    await api.handle(notificationRequest())
+    await api.handle(notificationRequest('/v1/messages'))
+
+    const counters = { accepted: 2, delivered: 2, failed: 0 }
+
+    expect(await readStatus(api)).toMatchObject({ notifications: counters, messages: counters })
   })
 })
 
@@ -135,7 +146,9 @@ describe('API docs', () => {
 
     const spec = (await response.json()) as { paths: Record<string, unknown> }
 
-    expect(Object.keys(spec.paths)).toEqual(expect.arrayContaining(['/v1/messages', '/v1/status']))
+    expect(Object.keys(spec.paths)).toEqual(
+      expect.arrayContaining(['/v1/notifications', '/v1/messages', '/v1/status']),
+    )
   })
 
   test('documents the bearer scheme so the console can authorize', async () => {

@@ -91,7 +91,7 @@ describe('selectPublished', () => {
 
 describe('readImagePackages', () => {
   test('finds the Gateway in this repository', async () => {
-    // Any version: every release bumps it, and this test runs on the Version Packages PR.
+    // Any version: every release bumps it, and this test runs on the Version Packages pull request.
     expect(await readImagePackages()).toContainEqual({
       name: 'shion',
       dir: 'packages/gateway',

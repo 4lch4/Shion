@@ -1,7 +1,7 @@
 import { Elysia } from 'elysia'
 import type { Deliver } from '../delivery'
 import type { Counters } from './counters'
-import { messageBodySchema } from './schema'
+import { notificationBodySchema } from './schema'
 
 function describeFailure(error: unknown): string {
   if (error instanceof Error) {
@@ -15,9 +15,14 @@ function describeFailure(error: unknown): string {
   return 'Delivery failed for an unknown reason.'
 }
 
-export function messagesRoute(deliver: Deliver, counters: Counters) {
+function deliveryRoute(
+  path: string,
+  deliver: Deliver,
+  counters: Counters,
+  detail: { deprecated?: boolean; description?: string } = {},
+) {
   return new Elysia().post(
-    '/messages',
+    path,
     async ({ body, status }) => {
       const id = crypto.randomUUID()
       counters.accepted += 1
@@ -43,6 +48,18 @@ export function messagesRoute(deliver: Deliver, counters: Counters) {
         deliveredAt: new Date().toISOString(),
       }
     },
-    { body: messageBodySchema },
+    { body: notificationBodySchema, detail },
+  )
+}
+
+// `/messages` is the route's name from before Message was renamed Notification
+// (ADR 5). It stays as a deprecated alias so existing Callers, and a rollback
+// to a version without `/notifications`, keep working.
+export function notificationsRoute(deliver: Deliver, counters: Counters) {
+  return new Elysia().use(deliveryRoute('/notifications', deliver, counters)).use(
+    deliveryRoute('/messages', deliver, counters, {
+      deprecated: true,
+      description: 'Deprecated alias of POST /v1/notifications.',
+    }),
   )
 }

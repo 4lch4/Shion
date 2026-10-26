@@ -6,6 +6,8 @@ export function statusRoute(gateway: GatewayStatus, counters: Counters) {
   return new Elysia().get('/status', () => ({
     status: gateway.isReady() ? ('ready' as const) : ('degraded' as const),
     bot: { tag: gateway.tag(), uptimeMs: gateway.uptimeMs() },
+    notifications: { ...counters },
+    // Deprecated: the same counters under their name from before ADR 5.
     messages: { ...counters },
     uptimeMs: Math.round(process.uptime() * 1000),
   }))

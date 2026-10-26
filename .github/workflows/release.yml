@@ -3,14 +3,14 @@ name: Release
 # Turns the changesets on main into a release (ADR 4).
 #
 # Every push to main runs changesets/action. With changesets pending it opens or
-# updates one "chore: version packages" PR. With none pending it runs
+# updates one "chore: version packages" pull request. With none pending it runs
 # `changeset publish`, which tags every package at its new version
 # (`<package>@<version>`) and creates the GitHub Releases, then reports what it
 # published. The images job builds and pushes each published package that has a
 # `docker` field, and the deploy job hands that app and version to deploy.yml.
 # Nothing runs on a tag, so ADR 2's warning about tags created with GITHUB_TOKEN
 # no longer applies. A PAT is still needed so CI runs on the Version Packages
-# PR; secrets.RELEASE_TOKEN is that PAT, with Contents and Pull requests
+# pull request; secrets.RELEASE_TOKEN is that PAT, with Contents and Pull requests
 # at read/write.
 on:
   push:
@@ -21,7 +21,7 @@ permissions:
   contents: write
   pull-requests: write
 
-# One release at a time, and a release is never cancelled halfway: the job
+# One release at a time, and a release is never canceled halfway: the job
 # pushes tags and GitHub Releases, which a cancel would leave half done.
 concurrency:
   group: release-${{ github.ref }}
@@ -44,7 +44,7 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile --ignore-scripts
 
-      - name: Open the Version Packages PR, or publish
+      - name: Open the Version Packages pull request, or publish
         id: changesets
         uses: changesets/action@v2
         with:
@@ -55,7 +55,7 @@ jobs:
           create-github-releases: true
           github-token: ${{ secrets.RELEASE_TOKEN }}
         env:
-          # @changesets/changelog-github reads this to link the commit and PR in
+          # @changesets/changelog-github reads this to link the commit and pull request in
           # each changelog entry. It must match github-token: the action refuses
           # a GITHUB_TOKEN that differs.
           GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}

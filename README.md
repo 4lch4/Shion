@@ -1,12 +1,11 @@
 # Shion
 
-Shion is my "Discord Gateway" and a personal Software/DevOps/Site Reliability Engineering learning
-project.
+Shion is my notification hub, and a DevOps and SRE learning project.
 
 Anything that can make an HTTP request — an AI agent, a script, a scheduled task, a service on
-another machine — hands Shion a Message, and Shion delivers it to one Recipient by Discord DM. The
-domain language for all of that lives in [`CONTEXT.md`](./CONTEXT.md); this file only covers how to
-run it.
+another machine — hands Shion a Notification, and Shion delivers it to me by Discord DM. Shion is
+the Gateway, which does the delivering, plus the Watchers, which poll things for me. The domain
+language for all of that lives in [`CONTEXT.md`](./CONTEXT.md); this file only covers how I run it.
 
 ## Requirements
 
@@ -21,6 +20,10 @@ The repository is a Bun workspace. Everything the Gateway runs — `src/`, `test
 there, with its own image and version. Shared tooling, including the scripts under `scripts/`, stays
 at the root.
 
+The Gateway's names differ by place, on purpose: the folder is `packages/gateway`, the package is
+`shion` (tags `shion@x.y.z`), the image is `4lch4/shion-bot`, the Compose service is `bot`, and
+other Compose projects reach it as `shion-gateway`.
+
 ## Local setup
 
 1. Install Bun and verify it with `bun --version`.
@@ -30,7 +33,7 @@ at the root.
    bun install
    ```
 
-3. The Gateway's scripts and environment live in its package, so move there for the rest of this
+3. The Gateway's scripts and environment live in its package, so I move there for the rest of this
    section and copy the environment template:
 
    ```sh
@@ -38,15 +41,15 @@ at the root.
    cp .env.example .env
    ```
 
-   Use the values from the Discord Developer Portal. `DISCORD_GUILD_ID` is optional; setting it
-   registers `/ping` in the test server immediately instead of globally.
+   The values come from the Discord Developer Portal. `DISCORD_GUILD_ID` is optional; setting it
+   registers `/ping` in my test guild immediately instead of globally.
 
-   You also need two values that the template cannot generate for you:
-   - `RECIPIENT_USER_ID` — your Discord user ID. Enable Developer Mode, right-click yourself, and
-     choose _Copy User ID_. The bot must share a server with you, otherwise Discord refuses to open
+   Two values the template can't generate:
+   - `RECIPIENT_USER_ID` — my Discord user ID. With Developer Mode on, right-click my name and
+     choose _Copy User ID_. The bot must share a guild with me, otherwise Discord refuses to open
      the DM.
-   - `API_TOKEN` — the shared secret callers authenticate with. Generate one with
-     `openssl rand -hex 32`. Shion refuses to start without it.
+   - `API_TOKEN` — the shared secret Callers authenticate with. I generate one with
+     `openssl rand -hex 32`. The Gateway refuses to start without it.
 
 4. Register the slash command:
 
@@ -60,13 +63,13 @@ at the root.
    bun run dev
    ```
 
-6. Invite the bot to a server with the `bot` and `applications.commands` OAuth scopes. Run `/ping` in
-   that server and verify the response is `Pong!`.
+6. Invite the bot to a guild with the `bot` and `applications.commands` OAuth scopes. Run `/ping` in
+   that guild and check the response is `Pong!`.
 
-7. Verify the API delivers a Message:
+7. Check the API delivers a Notification:
 
    ```sh
-   curl -i -X POST http://localhost:3000/v1/messages \
+   curl -i -X POST http://localhost:3000/v1/notifications \
      -H "Authorization: Bearer $API_TOKEN" \
      -H 'content-type: application/json' \
      -d '{"source":"manual","level":"warning","text":"hello from curl"}'
@@ -77,23 +80,28 @@ at the root.
 ## The API
 
 The Discord bot and the HTTP API are two faces of one Gateway running in one process. The API does
-not bind its port until the bot has finished connecting to Discord, so a caller can never reach
-`POST /v1/messages` while the bot is offline.
+not bind its port until the bot has finished connecting to Discord, so a Caller can never reach
+`POST /v1/notifications` while the bot is offline.
 
 Every `/v1` route requires `Authorization: Bearer <API_TOKEN>`. The token is compared against a
 SHA-256 digest using a constant-time comparison. `GET /docs` and `GET /docs/json` are open so the
-Swagger UI, served by `@elysia/openapi`, can load; use the **Authorize** button to supply the token.
+Swagger UI, served by `@elysia/openapi`, can load; its **Authorize** button takes the token.
 `GET /health` is open too, for healthchecks.
 
-| Route               | Purpose                                 |
-| ------------------- | --------------------------------------- |
-| `POST /v1/messages` | Deliver a Message to the Recipient      |
-| `GET /v1/status`    | Gateway readiness and Message counters  |
-| `GET /health`       | Readiness only, no token (healthchecks) |
-| `GET /docs`         | Swagger UI                              |
-| `GET /docs/json`    | OpenAPI specification                   |
+| Route                    | Purpose                                     |
+| ------------------------ | ------------------------------------------- |
+| `POST /v1/notifications` | Deliver a Notification to me                |
+| `POST /v1/messages`      | Deprecated alias of `/v1/notifications`     |
+| `GET /v1/status`         | Gateway readiness and Notification counters |
+| `GET /health`            | Readiness only, no token (healthchecks)     |
+| `GET /docs`              | Swagger UI                                  |
+| `GET /docs/json`         | OpenAPI specification                       |
 
-### `POST /v1/messages`
+`/v1/messages` is the route's name from before Message was renamed Notification
+([ADR 5](./docs/adr/0005-notification-hub-terminology.md)). It behaves exactly like
+`/v1/notifications` and stays until no Caller, and no version a deploy could roll back to, needs it.
+
+### `POST /v1/notifications`
 
 ```json
 {
@@ -103,9 +111,9 @@ Swagger UI, served by `@elysia/openapi`, can load; use the **Authorize** button 
 }
 ```
 
-- `source` — required, 1–64 characters. Who the Recipient sees this as coming from.
+- `source` — required, 1–64 characters. Who I see this as coming from.
 - `level` — optional, one of `info`, `warning`, `critical`. Defaults to `info`. It only decides how
-  the Message looks, never whether it is delivered.
+  the Notification looks, never whether it is delivered.
 - `text` — required, 1–2000 characters (Discord's own DM limit).
 
 ```json
@@ -122,12 +130,13 @@ Responses:
 
 - `200` — delivered, or the reason it could not be. Check `status`.
 - `401` — missing or wrong token. Sends a `WWW-Authenticate: Bearer` header.
-- `422` — the Message did not match the schema.
-- `502` — Shion accepted the Message but could not deliver it. The body carries Discord's own error
-  code, so `Cannot send messages to this user (Discord code 50007)` means the bot cannot DM you.
+- `422` — the Notification did not match the schema.
+- `502` — the Gateway accepted the Notification but could not deliver it. The body carries Discord's
+  own error code, so `Cannot send messages to this user (Discord code 50007)` means the bot cannot
+  DM me.
 
-Delivery either happens and is reported, or it fails and you are told. Shion never drops a Message
-silently.
+Delivery either happens and is reported, or it fails and the Caller is told. Shion never drops a
+Notification silently.
 
 ### `GET /v1/status`
 
@@ -135,19 +144,21 @@ silently.
 {
   "status": "ready",
   "bot": { "tag": "shion#1234", "uptimeMs": 43210 },
+  "notifications": { "accepted": 12, "delivered": 11, "failed": 1 },
   "messages": { "accepted": 12, "delivered": 11, "failed": 1 },
   "uptimeMs": 45002
 }
 ```
 
 `status` is `degraded` if the Discord connection drops after start. Counters are in-memory and reset
-on restart.
+on restart. `messages` repeats `notifications` for Callers that predate the rename, and is
+deprecated with `/v1/messages`.
 
 ## Docker Compose
 
 The Compose file lives in `packages/gateway`. Running it, or running a Watcher beside it, needs the
-shared `shion` network once. The server creates it during provisioning
-(`4lch4/Infrastructure`); locally, create it yourself:
+shared `shion` network once. On the server it's created during provisioning
+(`4lch4/Infrastructure`); locally, I create it myself:
 
 ```sh
 docker network create shion
@@ -178,7 +189,7 @@ docker compose down
 ```
 
 The Compose services read secrets from the local `.env` file. The `bot` service publishes `API_PORT`
-on the host so callers outside the container can reach the API.
+on the host so Callers outside the container can reach the API.
 
 ## Releases
 
@@ -206,11 +217,11 @@ IMAGE_TAG=0.1.2 docker compose pull  # exact pin
 IMAGE_TAG=latest docker compose pull # newest release
 ```
 
-To make a release, open a pull request with a changeset: `bunx changeset` from the root picks the
-packages and the bump, and its summary becomes the release note, so write it for the changelog.
+To make a release, I open a pull request with a changeset: `bunx changeset` from the root picks the
+packages and the bump, and its summary becomes the release note, so it's written for the changelog.
 Merging to `main` lets `.github/workflows/release.yml` collect every pending changeset into one
-`chore: version packages` pull request; merging that pull request is what tags, publishes and
-deploys. Nothing ships until you merge it.
+Version Packages pull request (`chore: version packages`); merging that pull request is what tags,
+publishes and deploys. Nothing ships until I merge it.
 
 That release tags each package `<package>@<version>`, such as `shion@0.3.0` or
 `opencode-watcher@0.1.0`, and creates the GitHub Release. The old `vX.Y.Z` tags stay as history.
@@ -225,8 +236,8 @@ Version Packages pull request deploys every app it released:
    as `tag:ci` and runs `ssh deploy@aicgen00 "shion X.Y.Z"` over Tailscale SSH.
 3. On the server, `deploy-app` pulls `4lch4/shion-bot:X.Y.Z`, restarts the Gateway and waits up to
    90 seconds for `/health`. If it never turns healthy, it rolls back to the previous version.
-4. The workflow sends the result to Shion as a Message, so the Recipient hears about every deploy.
-   A failed one is reported too, as long as the rollback left Shion running to receive it.
+4. The workflow sends the result to Shion as a Notification, so I hear about every deploy. A failed
+   one is reported too, as long as the rollback left the Gateway running to receive it.
 
 The `deploy` user's login shell only accepts `<app> <version>`, so the runner can deploy and
 nothing else. `deploy-app` and `deploy-shell` live in the private `4lch4/Infrastructure` repo
@@ -236,7 +247,7 @@ under `server/`; the setup is in the [Deploy-Methods guide][deploy-guide].
 
 ### Redeploy or roll back
 
-Run **Deploy** from the Actions tab and enter an app and a version; an older version is a rollback.
+I run **Deploy** from the Actions tab with an app and a version; an older version is a rollback.
 The app is checked against the packages that declare a `docker` field, so a typo fails before
 anything reaches the server. On the server itself, the same thing is:
 
@@ -261,7 +272,7 @@ The `shion` Docker network is created once for the whole host, by `4lch4/Infrast
 `docker network create shion`. `shion`'s `compose.yaml` only marks it `external: true`, and copies
 of that file on the server must keep it that way.
 
-On a fresh host, register the Discord commands once:
+On a fresh server, I register the Discord commands once:
 
 ```sh
 IMAGE_TAG="$(cat .current-tag)" docker compose --profile setup run --rm register-commands
@@ -291,8 +302,8 @@ pre-commit hook.
 Bun is pinned in `.bun-version`, the `FROM oven/bun:` lines in every `packages/*/Dockerfile`, and
 `packageManager` / `engines.bun` in `package.json`. Dependabot's `docker` ecosystem only rewrites
 the `FROM` lines, so `bun run check:bun-version` fails when the pins disagree. CI runs it as the
-**Bun version pins** job, which means a base-image PR stays red until the other pins are bumped with
-it.
+**Bun version pins** job, which means a base-image pull request stays red until the other pins are
+bumped with it.
 
 A pull request that changes a package also needs a changeset, or the **Changeset** job fails: run
 `bunx changeset`. When no package changed, add none; CI rejects an empty changeset, because one

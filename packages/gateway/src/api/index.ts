@@ -6,7 +6,7 @@ import type { Deliver } from '../delivery'
 import { digestToken, isAuthorized, unauthorizedResponse } from './auth'
 import type { Counters } from './counters'
 import { healthRoute } from './health'
-import { messagesRoute } from './messages'
+import { notificationsRoute } from './notifications'
 import { statusRoute } from './status'
 
 export interface ApiOptions {
@@ -27,7 +27,7 @@ export function buildApi({ deliver, gateway, apiToken }: ApiOptions) {
             title: 'Shion',
             version: pkg.version,
             description:
-              'Shion is a Discord Gateway. Anything that can make an HTTP request hands it a Message, and Shion delivers that Message to one Recipient by Discord DM.',
+              'Shion is my notification hub. Anything that can make an HTTP request hands it a Notification, and Shion delivers that Notification to me by Discord DM.',
           },
           components: {
             securitySchemes: {
@@ -47,7 +47,7 @@ export function buildApi({ deliver, gateway, apiToken }: ApiOptions) {
         .onBeforeHandle(({ request }) =>
           isAuthorized(request, expected) ? undefined : unauthorizedResponse(),
         )
-        .use(messagesRoute(deliver, counters))
+        .use(notificationsRoute(deliver, counters))
         .use(statusRoute(gateway, counters)),
     )
 }
