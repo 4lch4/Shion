@@ -295,7 +295,8 @@ the `FROM` lines, so `bun run check:bun-version` fails when the pins disagree. C
 it.
 
 A pull request that changes a package also needs a changeset, or the **Changeset** job fails: run
-`bunx changeset`, or `bunx changeset --empty` when no package changed.
+`bunx changeset`. When no package changed, add none; CI rejects an empty changeset, because one
+pending on `main` stops the release workflow from publishing.
 
 ## Configuration
 
