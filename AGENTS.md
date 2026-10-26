@@ -20,3 +20,23 @@ note in that package's `CHANGELOG.md`, so write it for whoever reads the release
 that changes no package, such as docs-only or CI-only work, adds an empty one with
 `bunx changeset --empty`. See [ADR 4](docs/adr/0004-watchers-as-separate-images.md) for why
 Changesets replaced release-please.
+
+### Docs
+
+`README.md` is for humans running Shion locally; everything else lives in `docs/`. When a change
+alters documented behaviour, update the page that owns it in the same pull request:
+
+- [`docs/api.md`](docs/api.md): the HTTP API, with auth, routes, bodies and status codes.
+- [`docs/development.md`](docs/development.md): workspace layout, quality checks, Bun version pins
+  and changesets.
+- [`docs/releasing.md`](docs/releasing.md): the Changesets release flow, package tags and image
+  tags.
+- [`docs/deployment.md`](docs/deployment.md): how a release reaches AICGEN00, redeploys and
+  rollbacks, and the server layout.
+- `CONTEXT.md` and `docs/adr/`: domain terms and architecture decisions, as in Domain docs above.
+
+### Compose files on the server
+
+The server runs a hand-copied `packages/<package>/compose.yaml`, and nothing syncs it. A pull
+request that changes one lists recopying it to `/mnt/volume_apps/apps/<app>/compose.yaml` under its
+manual steps. See `docs/deployment.md`.
