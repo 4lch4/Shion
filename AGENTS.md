@@ -20,4 +20,5 @@ note in that package's `CHANGELOG.md`, so write it for whoever reads the release
 that changes no package, such as docs-only or CI-only work, needs no changeset. Never add an empty
 one with `bunx changeset --empty`: while one is pending on `main`, the release workflow neither
 opens a Version Packages pull request nor publishes, and CI rejects it. See
-[ADR 4](docs/adr/0004-watchers-as-separate-images.md) for why Changesets replaced release-please.
+[ADR 4](docs/adr/0004-watchers-as-separate-images.md) for why Changesets replaced release-please,
+and [ADR 5](docs/adr/0005-no-empty-changesets.md) for why there are no empty changesets.
