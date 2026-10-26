@@ -1,0 +1,17 @@
+{
+  "name": "opencode-watcher",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun --watch src/index.ts",
+    "start": "bun run src/index.ts"
+  },
+  "dependencies": {
+    "@shion/watcher-kit": "workspace:*"
+  },
+  "docker": {
+    "image": "4lch4/shion-opencode-watcher",
+    "app": "opencode-watcher"
+  }
+}
