@@ -127,7 +127,14 @@ APP_DIR=/mnt/volume_apps/apps/opencode-watcher
 sudo mkdir -p "$APP_DIR"
 sudo cp packages/opencode-watcher/compose.yaml "$APP_DIR/compose.yaml"
 sudo cp packages/opencode-watcher/.env.example "$APP_DIR/.env"
-sudoedit "$APP_DIR/.env"   # set API_TOKEN to the Gateway's
+# Copy API_TOKEN from the Gateway's .env without printing it. sudoedit refuses here, because
+# the admin user owns /mnt/volume_apps/apps.
+sudo sh -c '
+  line=$(grep "^API_TOKEN=" /mnt/volume_apps/apps/shion/.env) &&
+  sed -i "s|^API_TOKEN=.*|$line|" "$0"
+' "$APP_DIR/.env"
+sudo sh -c '[ "$(grep ^API_TOKEN= "$1")" = "$(grep ^API_TOKEN= "$0")" ] && echo match' \
+  "$APP_DIR/.env" /mnt/volume_apps/apps/shion/.env
 sudo chown root:deploy "$APP_DIR" "$APP_DIR/compose.yaml" "$APP_DIR/.env"
 sudo chmod 755 "$APP_DIR"
 sudo chmod 644 "$APP_DIR/compose.yaml"
