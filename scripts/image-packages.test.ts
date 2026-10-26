@@ -91,10 +91,11 @@ describe('selectPublished', () => {
 
 describe('readImagePackages', () => {
   test('finds the Gateway in this repository', async () => {
+    // Any version: every release bumps it, and this test runs on the Version Packages PR.
     expect(await readImagePackages()).toContainEqual({
       name: 'shion',
       dir: 'packages/gateway',
-      version: '0.2.1',
+      version: expect.any(String),
       image: '4lch4/shion-bot',
       app: 'shion',
       dockerfile: 'packages/gateway/Dockerfile',
