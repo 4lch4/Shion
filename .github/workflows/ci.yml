@@ -1,5 +1,11 @@
 name: CI
 
+# Lint, typecheck, test and build every image on a pull request.
+#
+# A pull request that changes a package also needs a changeset, or the
+# `changeset` job fails: `bunx changeset` for a change that should release,
+# `bunx changeset --empty` for docs-only and CI-only work. ADR 4 has the
+# reasoning.
 on:
   push:
     branches:
@@ -50,5 +56,65 @@ jobs:
       - name: Test
         run: bun test
 
-      - name: Build Docker image
-        run: docker build --tag shion-ci .
+  changeset:
+    name: Changeset
+    # The Version Packages PR changes package versions, not packages, so it has
+    # no changeset of its own.
+    if: github.event_name == 'pull_request' && !startsWith(github.head_ref, 'changeset-release/')
+    runs-on: ubuntu-latest
+    steps:
+      # Full history, so `--since=origin/main` can find the merge base.
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile --ignore-scripts
+
+      - name: Check for a changeset
+        run: bunx changeset status --since=origin/main
+
+  packages:
+    name: Image packages
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.list.outputs.matrix }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      # Every package with a `docker` field, so a new Watcher joins this matrix
+      # without an edit here.
+      - name: List the image packages
+        id: list
+        run: |
+          {
+            echo 'matrix<<EOF'
+            bun run scripts/image-packages.ts
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+
+  images:
+    name: Build ${{ matrix.app }} image
+    needs: packages
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.packages.outputs.matrix) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Build the image
+        env:
+          DOCKERFILE: ${{ matrix.dockerfile }}
+          APP: ${{ matrix.app }}
+        run: docker build --file "$DOCKERFILE" --tag "shion-ci-$APP" .
