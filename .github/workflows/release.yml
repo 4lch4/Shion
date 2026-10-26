@@ -50,8 +50,8 @@ jobs:
         with:
           version-script: bun run version
           publish-script: bunx changeset publish
-          commit-message: 'chore: version packages'
-          pr-title: 'chore: version packages'
+          commit-message: "chore: version packages"
+          pr-title: "chore: version packages"
           create-github-releases: true
           github-token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
         env:

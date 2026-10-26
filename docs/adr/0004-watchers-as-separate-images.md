@@ -13,7 +13,6 @@ project and released with it. Its draft ADR 4 never merged. This ADR replaces it
 
 More Watchers will follow, and shipping each one inside the Gateway's image ties them together in
 ways that cost more than they save:
-
 - **Failures.** A Watcher that won't start can fail `deploy-app`'s `--wait` and roll the Gateway
   back with it. #18 worked around that by never letting the watcher exit, even with a bad config.
 - **Deploys.** A Watcher change needs a Gateway release and restarts the bot, and a Gateway change
@@ -28,7 +27,6 @@ call to the bot, a queue, or its own copy of the bot token to perform Delivery, 
 [ADR 1](./0001-single-process-gateway.md)'s reasons for one process still hold.
 
 Two existing decisions shape the rest:
-
 - [ADR 2](./0002-release-and-versioning.md) gives the repository one release-please version, tags
   `vX.Y.Z`, and a tag-triggered `release.yml`. It considered Changesets and rejected it, because
   each change needs a `.changeset/*.md` file, which is "strictly more state to keep in sync for the
@@ -77,7 +75,6 @@ release-please assigns each commit to a component by the paths it touches, and h
 another path to a component. A fix that touches only `packages/watcher-kit` would never release a
 Watcher. Its answer is the `node-workspace` plugin, which bumps dependents, but two open bugs hit
 this exact layout of one shared library and services using it through `workspace:*`:
-
 - [release-please#2853](https://github.com/googleapis/release-please/issues/2853): with separate
   pull requests, the plugin's release PRs miss the `autorelease: pending` label, so they are never
   tagged or released.
@@ -86,7 +83,6 @@ this exact layout of one shared library and services using it through `workspace
 
 Changesets handles dependents itself. Tested in a scratch Bun 1.4.3 workspace with
 `@changesets/cli` 3.0.3:
-
 - A changeset for `watcher-kit` alone also patch-bumps every Watcher that uses it, with "Updated
   dependencies" in that Watcher's changelog (`updateInternalDependencies: "patch"`).
 - `workspace:*` is left alone, and the locked install still passes after `changeset version`.
@@ -94,7 +90,6 @@ Changesets handles dependents itself. Tested in a scratch Bun 1.4.3 workspace wi
   npm and only creates git tags.
 
 How it is used:
-
 - **Every package has its own version and `CHANGELOG.md`.** The Gateway's changelog moves with it
   to `packages/gateway/` and carries on.
 - **Tags are `<package>@<version>`**, such as `shion@0.3.0` and `opencode-watcher@0.1.0`.
@@ -155,7 +150,6 @@ server by hand, as ADR 3 describes for `shion`.
 A Watcher in its own Compose project is not on Shion's network. A network called `shion` is created
 once on the server, as a provisioning step in 4lch4/Infrastructure, and every project marks it
 `external: true`:
-
 - If Shion's `compose.yaml` created it instead, `docker compose down` in `shion` would fail while
   any Watcher was attached. If Compose ever recreated it, running Watchers would lose the Gateway
   until they restarted.
@@ -167,7 +161,6 @@ once on the server, as a provisioning step in 4lch4/Infrastructure, and every pr
 
 A Watcher has no HTTP server to check, so it touches a heartbeat file, and its Compose healthcheck
 fails when the file is too old:
-
 - It writes the file on startup, so `deploy-app`'s 90-second wait passes before the first poll.
 - It touches the file after every poll attempt, successful or not. Otherwise an outage at the
   thing it watches would roll back a good release.
@@ -181,7 +174,6 @@ unreachable, still send one `warning` Message and keep polling.
 ### Where this departs from ADR 2 and ADR 3
 
 ADR 2 and ADR 3 are left as written. This ADR changes the following:
-
 - **From ADR 2:** Changesets replaces release-please. Each package is versioned separately, and tags
   are `<package>@<version>` instead of `vX.Y.Z`. Merging the Version Packages pull request is the
   release, as merging the Release PR was. No workflow runs on a tag, so ADR 2's warning about tags

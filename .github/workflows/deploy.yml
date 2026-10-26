@@ -64,7 +64,7 @@ jobs:
       APP: ${{ inputs.app }}
       # The Gateway's published port, where the deploy Message goes. It does not
       # move when a Watcher is the app being deployed.
-      SHION_PORT: '3300'
+      SHION_PORT: "3300"
     steps:
       - name: Checkout
         uses: actions/checkout@v7

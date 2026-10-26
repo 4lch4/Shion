@@ -14,7 +14,7 @@ _Avoid_: Alert, Notification, event, ping
 
 **Source**:
 The agent, script, task, or service that sent a Message. A Source is how the Recipient knows
-*who* is talking when several things happen at once. It is caller-declared, not derived.
+_who_ is talking when several things happen at once. It is caller-declared, not derived.
 _Avoid_: Sender, client, author, caller, agent
 
 **Recipient**:
@@ -23,7 +23,7 @@ Senders do not choose it.
 _Avoid_: Owner, user, admin, subscriber, me
 
 **Level**:
-A Message's severity. It decides how a Message *looks* when it arrives — never whether it
+A Message's severity. It decides how a Message _looks_ when it arrives — never whether it
 arrives, who it arrives for, or how urgent the queue is. A Message with no Level stated is
 `info`.
 _Avoid_: Severity, priority, urgency, tag

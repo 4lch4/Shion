@@ -42,9 +42,8 @@ at the root.
    registers `/ping` in the test server immediately instead of globally.
 
    You also need two values that the template cannot generate for you:
-
    - `RECIPIENT_USER_ID` — your Discord user ID. Enable Developer Mode, right-click yourself, and
-     choose *Copy User ID*. The bot must share a server with you, otherwise Discord refuses to open
+     choose _Copy User ID_. The bot must share a server with you, otherwise Discord refuses to open
      the DM.
    - `API_TOKEN` — the shared secret callers authenticate with. Generate one with
      `openssl rand -hex 32`. Shion refuses to start without it.
@@ -86,13 +85,13 @@ SHA-256 digest using a constant-time comparison. `GET /docs` and `GET /docs/json
 Swagger UI, served by `@elysia/openapi`, can load; use the **Authorize** button to supply the token.
 `GET /health` is open too, for healthchecks.
 
-| Route                | Purpose                                                     |
-| -------------------- | ----------------------------------------------------------- |
-| `POST /v1/messages`  | Deliver a Message to the Recipient                           |
-| `GET /v1/status`     | Gateway readiness and Message counters                       |
-| `GET /health`        | Readiness only, no token (healthchecks)                      |
-| `GET /docs`          | Swagger UI                                                   |
-| `GET /docs/json`     | OpenAPI specification                                        |
+| Route               | Purpose                                 |
+| ------------------- | --------------------------------------- |
+| `POST /v1/messages` | Deliver a Message to the Recipient      |
+| `GET /v1/status`    | Gateway readiness and Message counters  |
+| `GET /health`       | Readiness only, no token (healthchecks) |
+| `GET /docs`         | Swagger UI                              |
+| `GET /docs/json`    | OpenAPI specification                   |
 
 ### `POST /v1/messages`
 
@@ -189,12 +188,12 @@ Every package is versioned on its own with [Changesets](https://changesets.dev):
 `shion`, and each Watcher has its own name. Images are published to Docker Hub as
 `4lch4/shion-bot`, and each release produces four tags:
 
-| Tag      | Mutable | Use                                              |
-| -------- | ------- | ------------------------------------------------ |
+| Tag      | Mutable | Use                                             |
+| -------- | ------- | ----------------------------------------------- |
 | `0.1.2`  | No      | Exact pin, or an immutable record of a release. |
 | `0.1`    | Yes     | Tracks the newest `0.1.x`.                      |
 | `latest` | Yes     | Tracks the newest release. Ad-hoc testing only. |
-| `sha-…`  | No      | Reproducible build reference.                    |
+| `sha-…`  | No      | Reproducible build reference.                   |
 
 `latest` is a convenience for trying the newest build. Do not deploy from it: it carries no version
 information, so "which version is running?" has no answer in the registry. A deployed container
@@ -300,15 +299,15 @@ A pull request that changes a package also needs a changeset, or the **Changeset
 
 ## Configuration
 
-| Variable                                                              | Required | Default     |
-| --------------------------------------------------------------------- | -------- | ----------- |
-| `DISCORD_APP_ID` or `DISCORD_APPLICATION_ID` or `DISCORD_CLIENT_ID`   | yes      | —           |
-| `DISCORD_APP_TOKEN` or `DISCORD_TOKEN`                                | yes      | —           |
-| `RECIPIENT_USER_ID` or `DISCORD_RECIPIENT_ID`                         | yes      | —           |
-| `API_TOKEN` or `SHION_API_TOKEN`                                      | yes      | —           |
-| `DISCORD_GUILD_ID`                                                    | no       | global      |
-| `API_PORT`                                                            | no       | `3000`      |
-| `API_HOST`                                                            | no       | `0.0.0.0`   |
+| Variable                                                            | Required | Default   |
+| ------------------------------------------------------------------- | -------- | --------- |
+| `DISCORD_APP_ID` or `DISCORD_APPLICATION_ID` or `DISCORD_CLIENT_ID` | yes      | —         |
+| `DISCORD_APP_TOKEN` or `DISCORD_TOKEN`                              | yes      | —         |
+| `RECIPIENT_USER_ID` or `DISCORD_RECIPIENT_ID`                       | yes      | —         |
+| `API_TOKEN` or `SHION_API_TOKEN`                                    | yes      | —         |
+| `DISCORD_GUILD_ID`                                                  | no       | global    |
+| `API_PORT`                                                          | no       | `3000`    |
+| `API_HOST`                                                          | no       | `0.0.0.0` |
 
 ## Decisions
 
