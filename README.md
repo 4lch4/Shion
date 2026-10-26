@@ -133,13 +133,3 @@ the host at `API_HOST_PORT` (`3300` by default), so callers outside the containe
 | `API_PORT`                                                          | no       | `3000`    |
 | `API_HOST`                                                          | no       | `0.0.0.0` |
 | `API_HOST_PORT` (Compose only)                                      | no       | `3300`    |
-
-## Documentation
-
-- [`CONTEXT.md`](./CONTEXT.md) — the domain language: Message, Source, Recipient, Level, Delivery.
-- [`docs/api.md`](./docs/api.md) — the HTTP API in detail.
-- [`docs/development.md`](./docs/development.md) — layout, quality checks, Bun pins and changesets.
-- [`docs/releasing.md`](./docs/releasing.md) — making a release and the image tags it publishes.
-- [`docs/deployment.md`](./docs/deployment.md) — how a release reaches AICGEN00, redeploys and
-  rollbacks.
-- [`docs/adr/`](./docs/adr/) — architecture decisions and their reasoning.
