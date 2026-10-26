@@ -4,15 +4,15 @@ What every Watcher shares, so the next one doesn't copy the OpenCode watcher's p
 image and no `docker` field in its `package.json`: it is a library that Watchers depend on with
 `workspace:*`, and Changesets bumps the Watchers that use it.
 
-| Module        | Holds                                                                    |
-| ------------- | ------------------------------------------------------------------------ |
-| `config.ts`   | `optionalValue`, `requireValue`, the Shion URL and token, poll intervals |
-| `message.ts`  | The `POST /v1/messages` body, its Levels and the 2000-character limit    |
-| `shion.ts`    | `createShionSender`, which hands one Message to the Gateway              |
-| `state.ts`    | `createJsonStateStore`, a JSON file replaced in one step                 |
-| `outage.ts`   | One warning per outage, one info on recovery, retried until accepted     |
+| Module         | Holds                                                                    |
+| -------------- | ------------------------------------------------------------------------ |
+| `config.ts`    | `optionalValue`, `requireValue`, the Shion URL and token, poll intervals |
+| `message.ts`   | The `POST /v1/messages` body, its Levels and the 2000-character limit    |
+| `shion.ts`     | `createShionSender`, which hands one Message to the Gateway              |
+| `state.ts`     | `createJsonStateStore`, a JSON file replaced in one step                 |
+| `outage.ts`    | One warning per outage, one info on recovery, retried until accepted     |
 | `heartbeat.ts` | The file a Watcher's healthcheck reads                                   |
-| `run.ts`      | The poll loop that stops on SIGINT or SIGTERM                            |
+| `run.ts`       | The poll loop that stops on SIGINT or SIGTERM                            |
 
 ```ts
 import {
