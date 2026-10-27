@@ -1,5 +1,13 @@
 # @shion/watcher-kit
 
+## 0.1.2
+
+### Patch Changes
+
+- [#51](https://github.com/4lch4/Shion/pull/51) [`c1909c0`](https://github.com/4lch4/Shion/commit/c1909c09b0a8be76e8bb16cabe463ab50ac713dc) Thanks [@4lch4](https://github.com/4lch4)! - `createShionSender` now posts Notifications to `POST /v1/notifications` instead of the deprecated
+  `POST /v1/messages`. It needs Gateway 0.3.0 or newer, which is Shion's rollback floor, so every
+  Gateway it can meet has the route.
+
 ## 0.1.1
 
 ### Patch Changes
