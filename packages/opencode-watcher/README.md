@@ -2,7 +2,7 @@
 
 The OpenCode Watcher is a Watcher: a Source that runs on its own, polls the models OpenCode offers
 and sends a Notification when they change. It is not part of the Gateway. It calls
-`POST /v1/messages` like any other Source, and it ships as its own image and its own app on the
+`POST /v1/notifications` like any other Source, and it ships as its own image and its own app on the
 server, so a Watcher change never releases or restarts the Gateway. [ADR 4][adr-4] explains why.
 
 - **Source:** `opencode/models`. **Level:** `info`.

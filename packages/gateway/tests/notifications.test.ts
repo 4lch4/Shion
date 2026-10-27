@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'bun:test'
+import { describe, expect, spyOn, test } from 'bun:test'
 import { buildApi } from '../src/api'
 import type { GatewayStatus } from '../src/bot'
 import type { Deliver } from '../src/delivery'
@@ -208,6 +208,19 @@ describe('POST /v1/notifications', () => {
     expect((await api.handle(new Request('http://localhost/v1/notifcations'))).status).toBe(404)
   })
 
+  test('does not log the deprecation warning', async () => {
+    const warn = spyOn(console, 'warn').mockImplementation(() => {})
+    const api = buildHarness(recorder().deliver)
+
+    try {
+      await api.handle(post({ source: 'grafana', text: 'b' }))
+
+      expect(warn).not.toHaveBeenCalled()
+    } finally {
+      warn.mockRestore()
+    }
+  })
+
   test('the endpoints are not mounted at the root', async () => {
     const api = buildHarness(recorder().deliver)
 
@@ -216,6 +229,9 @@ describe('POST /v1/notifications', () => {
     expect((await api.handle(new Request('http://localhost/status'))).status).toBe(404)
   })
 })
+
+const deprecationWarning =
+  'Deprecated POST /v1/messages used by Source "grafana"; use POST /v1/notifications.'
 
 describe('POST /v1/messages', () => {
   test('still delivers, as a deprecated alias of /v1/notifications', async () => {
@@ -227,6 +243,20 @@ describe('POST /v1/messages', () => {
     expect(response.status).toBe(200)
     expect(delivered).toEqual([{ source: 'a', level: 'info', text: 'b' }])
     expect(await response.json()).toMatchObject({ status: 'delivered' })
+  })
+
+  test('logs one warning naming the Source', async () => {
+    const warn = spyOn(console, 'warn').mockImplementation(() => {})
+    const api = buildHarness(recorder().deliver)
+
+    try {
+      await api.handle(post({ source: 'grafana', text: 'b' }, apiToken, '/v1/messages'))
+
+      expect(warn).toHaveBeenCalledTimes(1)
+      expect(warn).toHaveBeenCalledWith(deprecationWarning)
+    } finally {
+      warn.mockRestore()
+    }
   })
 
   test('requires the API token', async () => {

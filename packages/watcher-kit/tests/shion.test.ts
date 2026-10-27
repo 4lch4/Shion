@@ -25,9 +25,9 @@ function fakeFetch(routes: Record<string, () => Response | Promise<Response>>) {
 const notification = { source: 'opencode/models', level: 'info' as const, text: 'hi' }
 
 describe('createShionSender', () => {
-  test('posts the Notification to /v1/messages with the API token', async () => {
+  test('posts the Notification to /v1/notifications with the API token', async () => {
     const { calls, fetch } = fakeFetch({
-      'http://shion-gateway:3000/v1/messages': () => json({ status: 'delivered' }),
+      'http://shion-gateway:3000/v1/notifications': () => json({ status: 'delivered' }),
     })
 
     await createShionSender('http://shion-gateway:3000', 'api-token', fetch)(notification)
@@ -40,7 +40,7 @@ describe('createShionSender', () => {
 
   test('throws with Shion’s reason when delivery fails', async () => {
     const { fetch } = fakeFetch({
-      'http://shion-gateway:3000/v1/messages': () =>
+      'http://shion-gateway:3000/v1/notifications': () =>
         json(
           { error: { code: 'delivery_failed', message: 'Cannot send messages to this user' } },
           { status: 502 },
@@ -54,7 +54,7 @@ describe('createShionSender', () => {
 
   test('falls back to the status text when the error body is not JSON', async () => {
     const { fetch } = fakeFetch({
-      'http://shion-gateway:3000/v1/messages': () =>
+      'http://shion-gateway:3000/v1/notifications': () =>
         new Response('rate limited', { status: 429, statusText: 'Too Many Requests' }),
     })
 

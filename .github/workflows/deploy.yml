@@ -76,10 +76,22 @@ jobs:
         env:
           VERSION: ${{ inputs.version }}
         run: |
+          # The Gateway's rollback floor. Nothing below it can be deployed now
+          # that this repository's Callers post to /v1/notifications (ADR 7).
+          floor=0.3.0
+
           bun run scripts/image-packages.ts --app "$APP"
 
           if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             echo "::error::version must look like 0.2.0, got '$VERSION'"
+            exit 1
+          fi
+
+          # Only the Gateway has a floor; a Watcher rolls back freely.
+          if [[ "$APP" == shion ]] &&
+            [[ "$(printf '%s\n%s\n' "$floor" "$VERSION" | sort -V | head -n1)" != "$floor" ]]; then
+            echo "::error::$floor is the Gateway's rollback floor, so '$VERSION' cannot be" \
+              "deployed; see docs/adr/0007-gateway-rollback-floor.md."
             exit 1
           fi
 
@@ -142,15 +154,14 @@ jobs:
           fi
           text+=$'\n'"$RUN_URL"
 
-          # A rollback restarts Shion without waiting for it, so give it time
-          # to reconnect to Discord before giving up. This uses the deprecated
-          # /v1/messages rather than /v1/notifications on purpose: a rollback
-          # can land on a version older than 0.3.0, which has only /v1/messages
-          # (ADR 6).
+          # A rollback restarts Shion without waiting for it, so give it time to
+          # reconnect to Discord before giving up. 0.3.0 is the Gateway's
+          # rollback floor, so whatever version this lands on has
+          # /v1/notifications (ADR 7).
           jq -n --arg level "$level" --arg text "${text:0:2000}" \
             '{source: "github-actions", level: $level, text: $text}' |
             curl -fsS --retry 10 --retry-all-errors --retry-delay 3 \
-              -X POST "http://$HOST_IP:$SHION_PORT/v1/messages" \
+              -X POST "http://$HOST_IP:$SHION_PORT/v1/notifications" \
               -H "Authorization: Bearer $SHION_API_TOKEN" \
               -H 'content-type: application/json' \
               --data-binary @- ||
