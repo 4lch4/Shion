@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.4.0
+
+### Minor Changes
+
+- [#38](https://github.com/4lch4/Shion/pull/38) [`a9d33fe`](https://github.com/4lch4/Shion/commit/a9d33fe8ff2b736b852daf6f3d1ccdee5cabd6cc) Thanks [@4lch4](https://github.com/4lch4)! - Delivery now shows when a Notification arrived as a `Sent` field on the embed, using a Discord
+  timestamp. Each Discord client renders it in the reader's own timezone, and the embed's built-in
+  timestamp is gone, so the time is not shown twice.
+
+### Patch Changes
+
+- [#51](https://github.com/4lch4/Shion/pull/51) [`c1909c0`](https://github.com/4lch4/Shion/commit/c1909c09b0a8be76e8bb16cabe463ab50ac713dc) Thanks [@4lch4](https://github.com/4lch4)! - The deprecated `POST /v1/messages` route now logs one warning per call, naming the Source, so any
+  Caller still using it can be found before the alias is removed. `POST /v1/notifications` is
+  unchanged and does not log.
+
 ## 0.3.0
 
 ### Minor Changes

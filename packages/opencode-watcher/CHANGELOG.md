@@ -1,5 +1,15 @@
 # opencode-watcher
 
+## 0.1.2
+
+### Patch Changes
+
+- [#51](https://github.com/4lch4/Shion/pull/51) [`c1909c0`](https://github.com/4lch4/Shion/commit/c1909c09b0a8be76e8bb16cabe463ab50ac713dc) Thanks [@4lch4](https://github.com/4lch4)! - Posts Notifications to `POST /v1/notifications` through the updated `@shion/watcher-kit`, so this
+  release needs Gateway 0.3.0 or newer. Nothing else about the Watcher changes; the release exists so
+  the image is rebuilt and redeployed with the new kit.
+- Updated dependencies [[`c1909c0`](https://github.com/4lch4/Shion/commit/c1909c09b0a8be76e8bb16cabe463ab50ac713dc)]:
+  - @shion/watcher-kit@0.1.2
+
 ## 0.1.1
 
 ### Patch Changes
