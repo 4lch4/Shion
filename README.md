@@ -91,15 +91,17 @@ Swagger UI, served by `@elysia/openapi`, can load; its **Authorize** button take
 | Route                    | Purpose                                     |
 | ------------------------ | ------------------------------------------- |
 | `POST /v1/notifications` | Deliver a Notification to me                |
-| `POST /v1/messages`      | Deprecated alias of `/v1/notifications`     |
+| `POST /v1/messages`      | Deprecated alias; logs each use             |
 | `GET /v1/status`         | Gateway readiness and Notification counters |
 | `GET /health`            | Readiness only, no token (healthchecks)     |
 | `GET /docs`              | Swagger UI                                  |
 | `GET /docs/json`         | OpenAPI specification                       |
 
 `/v1/messages` is the route's name from before Message was renamed Notification
-([ADR 6](./docs/adr/0006-notification-hub-terminology.md)). It behaves exactly like
-`/v1/notifications` and stays until no Caller, and no version a deploy could roll back to, needs it.
+([ADR 6](./docs/adr/0006-notification-hub-terminology.md)). Every Caller in this repository posts
+to `/v1/notifications`; the alias logs each use, naming the Source, so any Caller still on it can
+be found. It goes away in a later release, once those logs show no calls
+([ADR 7](./docs/adr/0007-gateway-rollback-floor.md)).
 
 ### `POST /v1/notifications`
 
@@ -249,10 +251,13 @@ under `server/`; the setup is in the [Deploy-Methods guide][deploy-guide].
 
 I run **Deploy** from the Actions tab with an app and a version; an older version is a rollback.
 The app is checked against the packages that declare a `docker` field, so a typo fails before
-anything reaches the server. On the server itself, the same thing is:
+anything reaches the server. 0.3.0 is the Gateway's rollback floor, and the workflow refuses a run
+below it, because no Gateway without `/v1/notifications` may be deployed
+([ADR 7](./docs/adr/0007-gateway-rollback-floor.md)). A Watcher has no floor and rolls back freely.
+On the server itself, the same thing is:
 
 ```sh
-sudo -u deploy deploy-app shion 0.2.0
+sudo -u deploy deploy-app shion 0.3.0
 ```
 
 ### On the server

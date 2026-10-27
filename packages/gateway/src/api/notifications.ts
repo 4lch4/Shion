@@ -21,11 +21,19 @@ function deliveryRoute(
   counters: Counters,
   detail: { deprecated?: boolean; description?: string } = {},
 ) {
+  const deprecated = detail.deprecated === true
+
   return new Elysia().post(
     path,
     async ({ body, status }) => {
       const id = crypto.randomUUID()
       counters.accepted += 1
+
+      if (deprecated) {
+        console.warn(
+          `Deprecated POST /v1${path} used by Source "${body.source}"; use POST /v1/notifications.`,
+        )
+      }
 
       try {
         await deliver(body)
@@ -53,8 +61,8 @@ function deliveryRoute(
 }
 
 // `/messages` is the route's name from before Message was renamed Notification
-// (ADR 6). It stays as a deprecated alias so existing Callers, and a rollback
-// to a version without `/notifications`, keep working.
+// (ADR 6). It stays as a deprecated alias, and logs each use so the remaining
+// Callers can be found before it is removed (ADR 7).
 export function notificationsRoute(deliver: Deliver, counters: Counters) {
   return new Elysia().use(deliveryRoute('/notifications', deliver, counters)).use(
     deliveryRoute('/messages', deliver, counters, {
