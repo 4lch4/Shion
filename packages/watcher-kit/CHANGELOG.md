@@ -1,5 +1,13 @@
 # @shion/watcher-kit
 
+## 0.2.0
+
+### Minor Changes
+
+- [#57](https://github.com/4lch4/Shion/pull/57) [`0a10876`](https://github.com/4lch4/Shion/commit/0a108768918143a4298b34e3165f30b0ac643200) Thanks [@4lch4](https://github.com/4lch4)! - The outage reporter now waits for two failed polls in a row before warning, so a single timeout
+  (such as models.dev redeploying) no longer sends a warning and then a recovery Notification.
+  `failuresBeforeWarning` changes the threshold, and defaults to 2.
+
 ## 0.1.2
 
 ### Patch Changes
