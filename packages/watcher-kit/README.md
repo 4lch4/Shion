@@ -10,7 +10,7 @@ image and no `docker` field in its `package.json`: it is a library that Watchers
 | `notification.ts` | The `POST /v1/notifications` body, its Levels and the 2000-character limit |
 | `shion.ts`        | `createShionSender`, which hands one Notification to the Gateway           |
 | `state.ts`        | `createJsonStateStore`, a JSON file replaced in one step                   |
-| `outage.ts`       | One warning per outage, one info on recovery, retried until accepted       |
+| `outage.ts`       | One warning per outage after 2 failed polls in a row, one info on recovery |
 | `heartbeat.ts`    | The file a Watcher's healthcheck reads                                     |
 | `run.ts`          | The poll loop that stops on SIGINT or SIGTERM                              |
 

@@ -18,7 +18,7 @@ function fakeShion() {
   }
 }
 
-function setup() {
+function setup(options: { failuresBeforeWarning?: number } = {}) {
   const shion = fakeShion()
   const lines: string[] = []
   const reporter = createOutageReporter({
@@ -26,6 +26,7 @@ function setup() {
     source: 'some/watcher',
     subject: "OpenCode's models",
     log: line => lines.push(line),
+    ...options,
   })
 
   return { shion, lines, reporter }
@@ -47,9 +48,63 @@ describe('createOutageReporter', () => {
     })
   })
 
+  test('says nothing when a single poll fails and the next one works', async () => {
+    const { shion, lines, reporter } = setup()
+
+    await reporter.failed(new Error('The operation timed out'))
+    await reporter.recovered()
+
+    expect(shion.sent).toEqual([])
+    expect(lines).toEqual(["Could not check OpenCode's models: The operation timed out"])
+  })
+
+  test('warns on the second failed poll, with the latest error', async () => {
+    const { shion, reporter } = setup()
+
+    await reporter.failed(new Error('https://models.dev/api.json returned 503'))
+    expect(shion.sent).toHaveLength(0)
+
+    await reporter.failed(new Error('The operation timed out'))
+
+    expect(shion.sent).toHaveLength(1)
+    expect(shion.sent[0]?.text).toBe(
+      "Can't check OpenCode's models: The operation timed out\nI'll keep trying and tell you when it works again.",
+    )
+  })
+
+  test('starts the count over after a poll works', async () => {
+    const { shion, reporter } = setup()
+
+    await reporter.failed(new Error('offline'))
+    await reporter.recovered()
+    await reporter.failed(new Error('offline'))
+
+    expect(shion.sent).toEqual([])
+  })
+
+  test('warns on the first failure when asked to', async () => {
+    const { shion, reporter } = setup({ failuresBeforeWarning: 1 })
+
+    await reporter.failed(new Error('offline'))
+
+    expect(shion.sent).toHaveLength(1)
+    expect(shion.sent[0]?.level).toBe('warning')
+  })
+
+  test('refuses a threshold that is not an integer of at least 1', () => {
+    for (const failuresBeforeWarning of [0, 1.5]) {
+      expect(() => setup({ failuresBeforeWarning })).toThrow(
+        'Invalid failuresBeforeWarning; expected an integer of at least 1.',
+      )
+    }
+  })
+
   test('keeps trying to report an outage until Shion accepts it', async () => {
     const { shion, lines, reporter } = setup()
     shion.setFailing(true)
+
+    await reporter.failed(new Error('offline'))
+    expect(shion.sent).toHaveLength(0)
 
     await reporter.failed(new Error('offline'))
     expect(shion.sent).toHaveLength(0)
@@ -71,6 +126,7 @@ describe('createOutageReporter', () => {
     expect(shion.sent).toHaveLength(0)
 
     await reporter.failed(new Error('offline'))
+    await reporter.failed(new Error('offline'))
     await reporter.recovered()
     await reporter.recovered()
 
@@ -81,6 +137,7 @@ describe('createOutageReporter', () => {
   test('a failed recovery is tried again on the next poll', async () => {
     const { shion, reporter } = setup()
 
+    await reporter.failed(new Error('offline'))
     await reporter.failed(new Error('offline'))
     shion.setFailing(true)
     await reporter.recovered()
@@ -96,6 +153,7 @@ describe('createOutageReporter', () => {
   test('stringifies errors that are not Errors', async () => {
     const { shion, reporter } = setup()
 
+    await reporter.failed('a plain string')
     await reporter.failed('a plain string')
 
     expect(shion.sent[0]?.text).toContain("Can't check OpenCode's models: a plain string")

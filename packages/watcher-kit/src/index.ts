@@ -12,6 +12,7 @@ export { createHeartbeat, type Heartbeat } from './heartbeat'
 export { type Level, levels, maxTextLength, type Notification } from './notification'
 export {
   createOutageReporter,
+  defaultFailuresBeforeWarning,
   type OutageReporter,
   type OutageReporterOptions,
 } from './outage'

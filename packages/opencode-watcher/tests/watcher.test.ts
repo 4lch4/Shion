@@ -197,11 +197,13 @@ describe('createWatcher', () => {
     expect(shion.sent[0]?.text).toContain('Watching')
   })
 
-  test('reports an outage once, not once per poll, and reports recovery', async () => {
+  test('waits for a second failed poll, then reports an outage once and reports recovery', async () => {
     const { catalog, shion, watcher } = setup(seeded)
     catalog.fail(new CatalogError('https://models.dev/api.json returned 503'))
 
     await watcher.poll()
+    expect(shion.sent).toEqual([])
+
     await watcher.poll()
     await watcher.poll()
 
@@ -219,12 +221,26 @@ describe('createWatcher', () => {
     expect(shion.sent[2]?.text).toContain('jev-1.13-free')
   })
 
+  test('says nothing when one poll fails and the next one works', async () => {
+    const { catalog, shion, watcher } = setup(seeded)
+    catalog.fail(new CatalogError('The operation timed out'))
+
+    await watcher.poll()
+    catalog.fail(undefined)
+    await watcher.poll()
+
+    expect(shion.sent).toEqual([])
+  })
+
   test('keeps trying to report an outage until Shion accepts it', async () => {
     const { catalog, shion, watcher } = setup(seeded)
     catalog.fail(new CatalogError('Could not reach https://opencode.ai/zen/v1/models'))
     shion.setFailing(true)
 
     await watcher.poll()
+    await watcher.poll()
+    expect(shion.sent).toHaveLength(0)
+
     shion.setFailing(false)
     await watcher.poll()
 
