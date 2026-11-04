@@ -66,9 +66,11 @@ twice and changes made while it was down are not missed.
 ## Failures, the heartbeat, and fail-fast
 
 If a source can't be read — an HTTP error, a timeout, a response that isn't JSON, an empty model
-list — the Watcher sends one `warning` Notification from `opencode/models` and keeps polling
-quietly. When the sources answer again it sends one `info` Notification to say so. A warning is
-retried until the Gateway accepts it, so a Gateway deploy in the middle of an outage doesn't lose
+list — the Watcher waits for two polls in a row to fail before it sends one `warning` Notification
+from `opencode/models`, so a one-off blip such as models.dev redeploying doesn't trigger a warning.
+At the default interval those two polls are about 5 minutes apart. After the warning it keeps
+polling quietly. When the sources answer again it sends one `info` Notification to say so. A warning
+is retried until the Gateway accepts it, so a Gateway deploy in the middle of an outage doesn't lose
 it.
 
 Bad config is different: a missing `API_TOKEN`, an invalid poll interval or a state or heartbeat

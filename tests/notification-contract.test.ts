@@ -47,6 +47,7 @@ describe('the watcher-kit Notification and the Gateway’s request schema', () =
     })
 
     await reporter.failed(new Error('https://models.dev/api.json returned 503'))
+    await reporter.failed(new Error('https://models.dev/api.json returned 503'))
     await reporter.recovered()
 
     expect(sent.map(notification => notification.level)).toEqual(['warning', 'info'])
