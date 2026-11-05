@@ -182,8 +182,8 @@ describe('CategoryView.warnings', () => {
     const shadowed = fakeChannel({ id: '100000000000000002', name: 'deploy', rawPosition: 4 })
     const lines = fakeCategoryView([shadowed, winner]).warnings()
 
-    expect(lines.filter(line => line.includes('Two text channels are named #deploy'))).toEqual([
-      'Two text channels are named #deploy; the one at position 1 (ID 100000000000000001) wins.',
+    expect(lines.filter(line => line.includes('2 text channels are named #deploy'))).toEqual([
+      '2 text channels are named #deploy; the one at position 1 (ID 100000000000000001) wins.',
     ])
   })
 

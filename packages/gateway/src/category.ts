@@ -226,7 +226,7 @@ export function createCategoryView(read: () => CategorySnapshot): CategoryView {
 
       if (winner !== undefined) {
         lines.push(
-          `Two text channels are named #${name}; the one at position ${winner.rawPosition} (ID ${winner.id}) wins.`,
+          `${channels.length} text channels are named #${name}; the one at position ${winner.rawPosition} (ID ${winner.id}) wins.`,
         )
       }
     }

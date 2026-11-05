@@ -68,7 +68,7 @@ describe('checkStartup', () => {
     })
 
     await expect(checkStartup({ rest, categoryId, recipientId })).rejects.toThrow(
-      `DISCORD_CATEGORY_ID ${categoryId} is a GuildText, not a category.`,
+      `DISCORD_CATEGORY_ID ${categoryId} is a text channel, not a category.`,
     )
   })
 

@@ -36,8 +36,24 @@ function isUnreadable(error: unknown): boolean {
   return code === 10003 || code === 50001
 }
 
+// Discord's channel types in words, for the "not a category" message.
+const channelTypeNames: Partial<Record<ChannelType, string>> = {
+  [ChannelType.GuildText]: 'text channel',
+  [ChannelType.DM]: 'DM',
+  [ChannelType.GuildVoice]: 'voice channel',
+  [ChannelType.GroupDM]: 'group DM',
+  [ChannelType.GuildAnnouncement]: 'announcement channel',
+  [ChannelType.AnnouncementThread]: 'announcement thread',
+  [ChannelType.PublicThread]: 'public thread',
+  [ChannelType.PrivateThread]: 'private thread',
+  [ChannelType.GuildStageVoice]: 'stage channel',
+  [ChannelType.GuildDirectory]: 'directory channel',
+  [ChannelType.GuildForum]: 'forum channel',
+  [ChannelType.GuildMedia]: 'media channel',
+}
+
 function typeName(type: number): string {
-  return ChannelType[type] ?? `type ${type}`
+  return channelTypeNames[type as ChannelType] ?? `channel of type ${type}`
 }
 
 // Runs over REST before login. A Category the bot can't see, or one that is another kind of
