@@ -1,12 +1,23 @@
 import { once } from 'node:events'
-import { Events } from 'discord.js'
+import { Events, REST } from 'discord.js'
 import { buildApi } from './api'
 import { createDiscordClient, toGatewayStatus } from './bot'
+import { createDiscordCategoryView } from './category'
 import { loadConfig } from './config'
-import { createDmDeliverer } from './delivery'
+import { createDeliverer } from './delivery'
+import { checkStartup } from './startup'
 
 async function main(): Promise<void> {
   const config = loadConfig()
+  const rest = new REST({ version: '10' }).setToken(config.token)
+
+  // Before login: a failed check exits with nothing listening, so deploy-app rolls back.
+  await checkStartup({
+    rest,
+    categoryId: config.categoryId,
+    recipientId: config.recipientId,
+  })
+
   const client = createDiscordClient()
 
   await client.login(config.token)
@@ -15,12 +26,20 @@ async function main(): Promise<void> {
     await once(client, Events.ClientReady)
   }
 
+  const category = createDiscordCategoryView(client, config.categoryId)
+
+  for (const warning of category.warnings()) {
+    console.warn(warning)
+  }
+
   const api = buildApi({
-    deliver: createDmDeliverer(
-      { fetchRecipient: async id => await client.users.fetch(id) },
-      config.recipientId,
-    ),
+    deliver: createDeliverer({
+      category,
+      directory: { fetchRecipient: async id => await client.users.fetch(id) },
+      recipientId: config.recipientId,
+    }),
     gateway: toGatewayStatus(client),
+    category,
     apiToken: config.apiToken,
   })
 

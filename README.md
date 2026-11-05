@@ -3,9 +3,10 @@
 Shion is my notification hub, and a DevOps and SRE learning project.
 
 Anything that can make an HTTP request — an AI agent, a script, a scheduled task, a service on
-another machine — hands Shion a Notification, and Shion delivers it to me by Discord DM. Shion is
-the Gateway, which does the delivering, plus the Watchers, which poll things for me. The domain
-language for all of that lives in [`CONTEXT.md`](./CONTEXT.md); this file only covers how I run it.
+another machine — hands Shion a Notification, and Shion delivers it to a channel in my Discord
+category, or to my DM when no channel can be used. Shion is the Gateway, which does the delivering,
+plus the Watchers, which poll things for me. The domain language for all of that lives in
+[`CONTEXT.md`](./CONTEXT.md); this file only covers how I run it.
 
 ## Requirements
 
@@ -44,10 +45,13 @@ other Compose projects reach it as `shion-gateway`.
    The values come from the Discord Developer Portal. `DISCORD_GUILD_ID` is optional; setting it
    registers `/ping` in my test guild immediately instead of globally.
 
-   Two values the template can't generate:
-   - `RECIPIENT_USER_ID` — my Discord user ID. With Developer Mode on, right-click my name and
-     choose _Copy User ID_. The bot must share a guild with me, otherwise Discord refuses to open
-     the DM.
+   Three values the template can't generate:
+   - `DISCORD_CATEGORY_ID` — the ID of the Category Notifications land in. With Developer Mode
+     on, right-click the Category and choose _Copy Channel ID_. The Gateway refuses to start
+     without it.
+   - `RECIPIENT_USER_ID` — my Discord user ID. Shion mentions me in `critical` Notifications and
+     falls back to my DM. With Developer Mode on, right-click my name and choose _Copy User ID_.
+     The bot must share a guild with me, otherwise Discord refuses to open the DM.
    - `API_TOKEN` — the shared secret Callers authenticate with. I generate one with
      `openssl rand -hex 32`. The Gateway refuses to start without it.
 
@@ -63,8 +67,27 @@ other Compose projects reach it as `shion-gateway`.
    bun run dev
    ```
 
-6. Invite the bot to a guild with the `bot` and `applications.commands` OAuth scopes. Run `/ping` in
-   that guild and check the response is `Pong!`.
+6. Invite the bot to a guild with the `bot` and `applications.commands` OAuth scopes. Give it
+   exactly View Channel, Send Messages and Embed Links on the Category; the permissions integer is
+   `19456`. `Manage Channels` isn't needed, because Shion never creates, renames or deletes
+   channels. Run `/ping` in that guild and check the response is `Pong!`.
+
+### The Shion Category
+
+Create one Discord category and put its ID in `DISCORD_CATEGORY_ID`. Inside it, create text
+channels with these names:
+
+- `alerts` — `critical` Notifications land here and mention me.
+- `inbox` — Notifications with no Topic, or whose Topic has no channel.
+- One channel per Topic, named exactly after it (`deploy`, `ci`, and so on).
+
+Sync each channel's permissions to the Category, so the bot's role has exactly View Channel, Send
+Messages and Embed Links there. Set the Category, or the whole server, to "Only @mentions": the
+Gateway mentions me only on `critical` Notifications.
+
+Renaming a channel changes the route with no warning. Shion reads the Discord cache on every
+Delivery, so adding or renaming a channel takes effect immediately, and a duplicate name goes to
+the channel higher in the sidebar.
 
 7. Check the API delivers a Notification:
 
@@ -75,7 +98,8 @@ other Compose projects reach it as `shion-gateway`.
      -d '{"source":"manual","level":"warning","text":"hello from curl"}'
    ```
 
-   A `200` with `"status":"delivered"` means the DM arrived in Discord.
+   A `200` with `"status":"delivered"` means it reached Discord; `deliveredTo` says which channel,
+   or `dm`, and `rerouted` says where it was meant to go and why it did not.
 
 ## The API
 
@@ -88,14 +112,14 @@ SHA-256 digest using a constant-time comparison. `GET /docs` and `GET /docs/json
 Swagger UI, served by `@elysia/openapi`, can load; its **Authorize** button takes the token.
 `GET /health` is open too, for healthchecks.
 
-| Route                    | Purpose                                     |
-| ------------------------ | ------------------------------------------- |
-| `POST /v1/notifications` | Deliver a Notification to me                |
-| `POST /v1/messages`      | Deprecated alias; logs each use             |
-| `GET /v1/status`         | Gateway readiness and Notification counters |
-| `GET /health`            | Readiness only, no token (healthchecks)     |
-| `GET /docs`              | Swagger UI                                  |
-| `GET /docs/json`         | OpenAPI specification                       |
+| Route                    | Purpose                                            |
+| ------------------------ | -------------------------------------------------- |
+| `POST /v1/notifications` | Deliver a Notification to a channel in my Category |
+| `POST /v1/messages`      | Deprecated alias; logs each use                    |
+| `GET /v1/status`         | Gateway readiness, Category health and counters    |
+| `GET /health`            | Readiness only, no token (healthchecks)            |
+| `GET /docs`              | Swagger UI                                         |
+| `GET /docs/json`         | OpenAPI specification                              |
 
 `/v1/messages` is the route's name from before Message was renamed Notification
 ([ADR 6](./docs/adr/0006-notification-hub-terminology.md)). Every Caller in this repository posts
@@ -107,35 +131,59 @@ be found. It goes away in a later release, once those logs show no calls
 
 ```json
 {
-  "source": "grafana",
+  "source": "4lch4/Shion",
   "level": "warning",
-  "text": "disk 90% full on web-01"
+  "topic": "ci",
+  "text": "CI failed: Verify"
 }
 ```
 
 - `source` — required, 1–64 characters. Who I see this as coming from.
-- `level` — optional, one of `info`, `warning`, `critical`. Defaults to `info`. It only decides how
-  the Notification looks, never whether it is delivered.
-- `text` — required, 1–2000 characters (Discord's own DM limit).
+- `level` — optional, one of `info`, `warning`, `critical`. Defaults to `info`. It decides how the
+  Notification looks. A `critical` Notification also goes to `#alerts` whatever its Topic, and
+  mentions me, so it is the only Level that buzzes my phone.
+- `topic` — optional. Lowercase letters, digits and hyphens, 1–100 characters. It names the text
+  channel in the Category the Notification should land in. `alerts` and `inbox` are reserved and
+  get a `422` with code `reserved_topic`.
+- `text` — required, 1–2000 characters (Discord's own message limit).
+
+Where a Notification lands:
+
+- `critical`: `#alerts`, whatever the Topic.
+- Any other Level with a Topic that has a channel in the Category: that channel.
+- Otherwise: `#inbox`. A Topic with no channel shows as `deploy (no channel matched)` on the post.
+
+When the intended channel can't be used — it is missing, the bot lacks a permission, or the send
+fails with a stale-cache error — Delivery falls back to `#inbox`, then to my DM. The `200` body
+says where it landed:
 
 ```json
 {
   "id": "5f2c8a1e-1c9b-4a7d-9b0e-2f6a1c3d4e5f",
-  "source": "grafana",
-  "level": "warning",
+  "source": "4lch4/Shion",
+  "level": "info",
   "status": "delivered",
-  "deliveredAt": "2026-09-30T12:04:11.882Z"
+  "deliveredAt": "2026-11-05T12:04:11.882Z",
+  "deliveredTo": "#inbox",
+  "rerouted": {
+    "from": "#deploy",
+    "reasons": ["#deploy: Missing Permissions (50013)"]
+  }
 }
 ```
 
+- `deliveredTo` — `#` plus the channel's name, or `dm`.
+- `rerouted` — only when a place was skipped or failed. `from` is the intended place, and
+  `reasons` is one string per failure, in chain order.
+
 Responses:
 
-- `200` — delivered, or the reason it could not be. Check `status`.
+- `200` — delivered. Check `status`, `deliveredTo` and `rerouted`.
 - `401` — missing or wrong token. Sends a `WWW-Authenticate: Bearer` header.
-- `422` — the Notification did not match the schema.
-- `502` — the Gateway accepted the Notification but could not deliver it. The body carries Discord's
-  own error code, so `Cannot send messages to this user (Discord code 50007)` means the bot cannot
-  DM me.
+- `422` — the Notification did not match the schema, including a malformed or reserved Topic.
+- `502` — every place failed, or a non-fallback Discord error stopped Delivery. The body joins
+  each reason with `; `, for example `#deploy: Missing Permissions (50013); #inbox: Unknown Channel
+  (10003); DM: Cannot send messages to this user (50007)`.
 
 Delivery either happens and is reported, or it fails and the Caller is told. Shion never drops a
 Notification silently.
@@ -146,13 +194,22 @@ Notification silently.
 {
   "status": "ready",
   "bot": { "tag": "shion#1234", "uptimeMs": 43210 },
-  "notifications": { "accepted": 12, "delivered": 11, "failed": 1 },
-  "messages": { "accepted": 12, "delivered": 11, "failed": 1 },
+  "category": {
+    "id": "123456789012345678",
+    "found": true,
+    "alerts": { "state": "ok" },
+    "inbox": { "state": "unusable", "missing": ["Embed Links"] },
+    "unusableTopicChannels": [{ "name": "deploy", "missing": ["Send Messages"] }]
+  },
+  "notifications": { "accepted": 12, "delivered": 11, "failed": 1, "rerouted": 2 },
+  "messages": { "accepted": 12, "delivered": 11, "failed": 1, "rerouted": 2 },
   "uptimeMs": 45002
 }
 ```
 
-`status` is `degraded` if the Discord connection drops after start. Counters are in-memory and reset
+`status` is only the Discord connection: a broken channel never makes it `degraded`. `category` is
+built from the cache on each request. `alerts` and `inbox` are `ok`, `missing` or `unusable` with
+the permissions the bot lacks. A reroute counts as delivered too. Counters are in-memory and reset
 on restart. `messages` repeats `notifications` for Callers that predate the rename, and is
 deprecated with `/v1/messages`.
 
@@ -321,10 +378,16 @@ pending on `main` stops the release workflow from publishing.
 | `DISCORD_APP_ID` or `DISCORD_APPLICATION_ID` or `DISCORD_CLIENT_ID` | yes      | —         |
 | `DISCORD_APP_TOKEN` or `DISCORD_TOKEN`                              | yes      | —         |
 | `RECIPIENT_USER_ID` or `DISCORD_RECIPIENT_ID`                       | yes      | —         |
+| `DISCORD_CATEGORY_ID`                                               | yes      | —         |
 | `API_TOKEN` or `SHION_API_TOKEN`                                    | yes      | —         |
 | `DISCORD_GUILD_ID`                                                  | no       | global    |
 | `API_PORT`                                                          | no       | `3000`    |
 | `API_HOST`                                                          | no       | `0.0.0.0` |
+
+`DISCORD_CATEGORY_ID` is required from 0.5.0 on, and a rollback keeps it in `.env` harmlessly,
+because older Gateways ignore it. The Category's guild is the one Shion works in;
+`DISCORD_GUILD_ID` only decides where `/ping` is registered, and is never compared with the
+Category's guild.
 
 ## Decisions
 

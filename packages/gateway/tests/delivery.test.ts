@@ -1,122 +1,363 @@
 import { describe, expect, test } from 'bun:test'
-import { EmbedBuilder, type MessageCreateOptions } from 'discord.js'
-import { createDmDeliverer } from '../src/delivery'
-import { levels, type Notification } from '../src/notification'
+import { ChannelType, PermissionFlagsBits } from 'discord.js'
+import type { CategoryChannel } from '../src/category'
+import { createDeliverer, type Deliver, DeliveryFailed } from '../src/delivery'
+import type { Notification } from '../src/notification'
+import {
+  discordApiError,
+  embedOf,
+  fakeCategoryView,
+  fakeChannel,
+  fakeDirectory,
+  recipientId,
+} from './support'
 
 const notification: Notification = {
-  source: 'grafana',
+  source: '4lch4/Shion',
   level: 'info',
-  text: 'disk almost full',
+  text: 'CI failed: Verify',
 }
 
-function fakeDirectory() {
-  const fetched: string[] = []
-  const sent: MessageCreateOptions[] = []
+interface HarnessOptions {
+  dm?: { fetchError?: unknown; sendError?: unknown }
+}
 
-  return {
-    fetched,
-    sent,
-    directory: {
-      fetchRecipient: async (id: string) => {
-        fetched.push(id)
+function harness(channels: readonly CategoryChannel[], options: HarnessOptions = {}) {
+  const logs: string[] = []
+  const dm = fakeDirectory(options.dm)
+  const deliver: Deliver = createDeliverer({
+    category: fakeCategoryView(channels),
+    directory: dm.directory,
+    recipientId,
+    log: line => logs.push(line),
+  })
 
-        return {
-          send: async (payload: MessageCreateOptions) => {
-            sent.push(payload)
-          },
-        }
-      },
-    },
+  return { deliver, logs, dm }
+}
+
+async function failureOf(promise: Promise<unknown>): Promise<DeliveryFailed> {
+  try {
+    await promise
+  } catch (error) {
+    if (error instanceof DeliveryFailed) {
+      return error
+    }
+
+    throw error
   }
+
+  throw new Error('Expected Delivery to fail.')
 }
 
-function embedOf(payload: MessageCreateOptions | undefined) {
-  const embed = payload?.embeds?.[0]
-
-  return embed instanceof EmbedBuilder ? embed.toJSON() : undefined
+function field(payload: Parameters<typeof embedOf>[0], name: string) {
+  return embedOf(payload)?.fields?.find(candidate => candidate.name === name)
 }
 
-describe('createDmDeliverer', () => {
-  test('delivers to the Recipient it was configured with', async () => {
-    const { directory, fetched, sent } = fakeDirectory()
+describe('Delivery routing', () => {
+  test('sends a Topic to the channel named after it', async () => {
+    const deploy = fakeChannel({ id: '100000000000000001', name: 'deploy' })
+    const inbox = fakeChannel({ id: '100000000000000002', name: 'inbox' })
+    const { deliver } = harness([deploy, inbox])
 
-    await createDmDeliverer(directory, 'recipient-id')(notification)
+    const delivered = await deliver({ ...notification, topic: 'deploy' })
 
-    expect(fetched).toEqual(['recipient-id'])
-    expect(sent).toHaveLength(1)
+    expect(delivered).toEqual({ deliveredTo: '#deploy' })
+    expect(deploy.sent).toHaveLength(1)
+    expect(inbox.sent).toHaveLength(0)
+    expect(field(deploy.sent[0], 'Topic')).toBeUndefined()
   })
 
-  test('the Source cannot choose the Recipient', async () => {
-    const { directory, fetched } = fakeDirectory()
-    const deliver = createDmDeliverer(directory, 'recipient-id')
+  test('sends a critical Notification to #alerts and mentions the Recipient', async () => {
+    const deploy = fakeChannel({ id: '100000000000000001', name: 'deploy' })
+    const alerts = fakeChannel({ id: '100000000000000002', name: 'alerts' })
+    const { deliver } = harness([deploy, alerts])
 
-    await deliver({ ...notification, source: 'some-other-agent' })
-    await deliver({ ...notification, source: 'some-other-agent' })
+    const delivered = await deliver({ ...notification, level: 'critical', topic: 'deploy' })
 
-    expect(fetched).toEqual(['recipient-id', 'recipient-id'])
+    expect(delivered).toEqual({ deliveredTo: '#alerts' })
+    expect(alerts.sent).toHaveLength(1)
+    expect(deploy.sent).toHaveLength(0)
+    expect(alerts.sent[0]?.content).toContain(`<@${recipientId}>`)
+    expect(field(alerts.sent[0], 'Topic')?.value).toBe('deploy')
   })
 
-  test('embeds the text with the Source as the author', async () => {
-    const { directory, sent } = fakeDirectory()
+  test('sends a Notification with no Topic to #inbox without a Topic field', async () => {
+    const inbox = fakeChannel({ id: '100000000000000002', name: 'inbox' })
+    const { deliver, logs } = harness([inbox])
 
-    await createDmDeliverer(directory, 'recipient-id')(notification)
+    const delivered = await deliver(notification)
 
-    expect(embedOf(sent[0])).toMatchObject({
-      description: 'disk almost full',
-      title: 'INFO',
-      author: { name: 'grafana' },
+    expect(delivered).toEqual({ deliveredTo: '#inbox' })
+    expect(inbox.sent).toHaveLength(1)
+    expect(field(inbox.sent[0], 'Topic')).toBeUndefined()
+    expect(logs).toEqual([])
+  })
+
+  test('sends an unrouted Topic to #inbox without calling it rerouted', async () => {
+    const inbox = fakeChannel({ id: '100000000000000002', name: 'inbox' })
+    const { deliver, logs } = harness([inbox])
+
+    const delivered = await deliver({ ...notification, topic: 'dpeloy' })
+
+    expect(delivered).toEqual({ deliveredTo: '#inbox' })
+    expect(field(inbox.sent[0], 'Topic')?.value).toBe('dpeloy (no channel matched)')
+    expect(field(inbox.sent[0], 'Rerouted from')).toBeUndefined()
+    expect(logs).toEqual([])
+  })
+
+  test('ignores a channel of the wrong type', async () => {
+    const voice = fakeChannel({
+      id: '100000000000000001',
+      name: 'deploy',
+      type: ChannelType.GuildVoice,
+    })
+    const inbox = fakeChannel({ id: '100000000000000002', name: 'inbox' })
+    const { deliver } = harness([voice, inbox])
+
+    const delivered = await deliver({ ...notification, topic: 'deploy' })
+
+    expect(delivered).toEqual({ deliveredTo: '#inbox' })
+    expect(voice.sent).toHaveLength(0)
+    expect(field(inbox.sent[0], 'Topic')?.value).toBe('deploy (no channel matched)')
+  })
+})
+
+describe('Delivery fallback', () => {
+  test('skips an unusable Topic channel without sending to it', async () => {
+    const deploy = fakeChannel({
+      id: '100000000000000001',
+      name: 'deploy',
+      permissions: PermissionFlagsBits.ViewChannel,
+    })
+    const inbox = fakeChannel({ id: '100000000000000002', name: 'inbox' })
+    const { deliver, logs } = harness([deploy, inbox])
+
+    const delivered = await deliver({ ...notification, topic: 'deploy' })
+
+    expect(delivered).toEqual({
+      deliveredTo: '#inbox',
+      rerouted: {
+        from: '#deploy',
+        reasons: ['#deploy: Missing Permissions (Send Messages, Embed Links)'],
+      },
+    })
+    expect(deploy.sent).toHaveLength(0)
+    expect(inbox.sent).toHaveLength(1)
+    expect(logs).toEqual(['#deploy: Missing Permissions (Send Messages, Embed Links)'])
+  })
+
+  test('treats null channel permissions as unusable', async () => {
+    const deploy = fakeChannel({ id: '100000000000000001', name: 'deploy', permissions: null })
+    const inbox = fakeChannel({ id: '100000000000000002', name: 'inbox' })
+    const { deliver } = harness([deploy, inbox])
+
+    const delivered = await deliver({ ...notification, topic: 'deploy' })
+
+    expect(delivered).toMatchObject({
+      deliveredTo: '#inbox',
+      rerouted: { from: '#deploy' },
     })
   })
 
-  test('marks when Delivery happened with a Discord timestamp', async () => {
-    const { directory, sent } = fakeDirectory()
+  for (const [code, message] of [
+    [50013, 'Missing Permissions'],
+    [10003, 'Unknown Channel'],
+    [50001, 'Missing Access'],
+  ] as const) {
+    test(`falls back to #inbox after a ${code} send error`, async () => {
+      const deploy = fakeChannel({
+        id: '100000000000000001',
+        name: 'deploy',
+        sendError: discordApiError(code, message),
+      })
+      const inbox = fakeChannel({ id: '100000000000000002', name: 'inbox' })
+      const { deliver } = harness([deploy, inbox])
 
-    await createDmDeliverer(directory, 'recipient-id')(notification)
+      const delivered = await deliver({ ...notification, topic: 'deploy' })
 
-    const sentField = embedOf(sent[0])?.fields?.find(field => field.name === 'Sent')
+      expect(delivered).toEqual({
+        deliveredTo: '#inbox',
+        rerouted: { from: '#deploy', reasons: [`#deploy: ${message} (${code})`] },
+      })
+      expect(inbox.sent).toHaveLength(1)
+    })
+  }
 
-    expect(sentField?.value).toMatch(/^<t:\d+:f>$/)
+  for (const [code, message] of [
+    [50035, 'Invalid Form Body'],
+    [40005, 'Request entity too large'],
+    [0, 'Internal Server Error'],
+  ] as const) {
+    test(`stops at once after a ${code} send error, without trying #inbox`, async () => {
+      const deploy = fakeChannel({
+        id: '100000000000000001',
+        name: 'deploy',
+        sendError: discordApiError(code, message),
+      })
+      const inbox = fakeChannel({ id: '100000000000000002', name: 'inbox' })
+      const { deliver, logs } = harness([deploy, inbox])
+
+      const failure = await failureOf(deliver({ ...notification, topic: 'deploy' }))
+
+      expect(failure.message).toBe(`#deploy: ${message} (${code})`)
+      expect(failure.reasons).toEqual([`#deploy: ${message} (${code})`])
+      expect(inbox.sent).toHaveLength(0)
+      expect(logs).toEqual([`#deploy: ${message} (${code})`])
+    })
+  }
+
+  test('stops at once on a network error with no Discord code', async () => {
+    const deploy = fakeChannel({
+      id: '100000000000000001',
+      name: 'deploy',
+      sendError: new Error('socket hang up'),
+    })
+    const inbox = fakeChannel({ id: '100000000000000002', name: 'inbox' })
+    const { deliver } = harness([deploy, inbox])
+
+    const failure = await failureOf(deliver({ ...notification, topic: 'deploy' }))
+
+    expect(failure.message).toBe('#deploy: socket hang up')
+    expect(inbox.sent).toHaveLength(0)
   })
 
-  test('each Level renders with its own color', async () => {
-    const { directory, sent } = fakeDirectory()
-    const deliver = createDmDeliverer(directory, 'recipient-id')
+  test('falls back from a missing #alerts to #inbox and keeps the mention', async () => {
+    const deploy = fakeChannel({ id: '100000000000000001', name: 'deploy' })
+    const inbox = fakeChannel({ id: '100000000000000002', name: 'inbox' })
+    const { deliver } = harness([deploy, inbox])
 
-    for (const level of levels) {
-      await deliver({ ...notification, level })
-    }
+    const delivered = await deliver({ ...notification, level: 'critical', topic: 'deploy' })
 
-    expect(sent.map(payload => embedOf(payload)?.color)).toEqual([0x5865f2, 0xfaa61a, 0xed4245])
-  })
-
-  test('propagates a failure to reach the Recipient', async () => {
-    const deliver = createDmDeliverer(
-      {
-        fetchRecipient: async () => {
-          const error = new Error('Cannot send messages to this user')
-          Reflect.set(error, 'code', 50007)
-
-          throw error
-        },
+    expect(delivered).toEqual({
+      deliveredTo: '#inbox',
+      rerouted: {
+        from: '#alerts',
+        reasons: ['#alerts: no such text channel in the Category'],
       },
-      'recipient-id',
+    })
+    expect(inbox.sent[0]?.content).toContain(`<@${recipientId}>`)
+    expect(field(inbox.sent[0], 'Topic')?.value).toBe('deploy')
+    expect(field(inbox.sent[0], 'Rerouted from')?.value).toBe(
+      '#alerts: no such text channel in the Category',
     )
-
-    expect(deliver(notification)).rejects.toThrow('Cannot send messages to this user')
   })
 
-  test('propagates a failure to deliver', async () => {
-    const deliver = createDmDeliverer(
-      {
-        fetchRecipient: async () => ({
-          send: async () => {
-            throw new Error('Missing Access')
-          },
-        }),
-      },
-      'recipient-id',
-    )
+  test('falls back from a broken #inbox to the DM for an unrouted Topic', async () => {
+    const inbox = fakeChannel({
+      id: '100000000000000002',
+      name: 'inbox',
+      sendError: discordApiError(50013, 'Missing Permissions'),
+    })
+    const { deliver, dm } = harness([inbox])
 
-    expect(deliver(notification)).rejects.toThrow('Missing Access')
+    const delivered = await deliver({ ...notification, topic: 'dpeloy' })
+
+    expect(delivered).toEqual({
+      deliveredTo: 'dm',
+      rerouted: {
+        from: '#inbox',
+        reasons: ['#inbox: Missing Permissions (50013)'],
+      },
+    })
+    expect(dm.fetched).toEqual([recipientId])
+    expect(dm.sent).toHaveLength(1)
+    expect(field(dm.sent[0], 'Topic')?.value).toBe('dpeloy (no channel matched)')
+    expect(field(dm.sent[0], 'Rerouted from')?.value).toBe('#inbox: Missing Permissions (50013)')
+  })
+
+  test('reports one reason for one failure and two for two', async () => {
+    const deploy = fakeChannel({
+      id: '100000000000000001',
+      name: 'deploy',
+      sendError: discordApiError(50013, 'Missing Permissions'),
+    })
+    const inbox = fakeChannel({ id: '100000000000000002', name: 'inbox' })
+    const first = harness([deploy, inbox])
+
+    const one = await first.deliver({ ...notification, topic: 'deploy' })
+
+    expect(one.rerouted?.reasons).toHaveLength(1)
+
+    const brokenInbox = fakeChannel({
+      id: '100000000000000002',
+      name: 'inbox',
+      sendError: discordApiError(10003, 'Unknown Channel'),
+    })
+    const second = harness([deploy, brokenInbox])
+
+    const two = await second.deliver({ ...notification, topic: 'deploy' })
+
+    expect(two.rerouted?.reasons).toEqual([
+      '#deploy: Missing Permissions (50013)',
+      '#inbox: Unknown Channel (10003)',
+    ])
+  })
+
+  test('reports every reason in chain order when every place fails', async () => {
+    const deploy = fakeChannel({
+      id: '100000000000000001',
+      name: 'deploy',
+      sendError: discordApiError(50013, 'Missing Permissions'),
+    })
+    const inbox = fakeChannel({
+      id: '100000000000000002',
+      name: 'inbox',
+      sendError: discordApiError(10003, 'Unknown Channel'),
+    })
+    const { deliver, dm, logs } = harness([deploy, inbox], {
+      dm: { sendError: discordApiError(50007, 'Cannot send messages to this user') },
+    })
+
+    const failure = await failureOf(deliver({ ...notification, topic: 'deploy' }))
+
+    expect(failure.message).toBe(
+      '#deploy: Missing Permissions (50013); #inbox: Unknown Channel (10003); DM: Cannot send messages to this user (50007)',
+    )
+    expect(failure.reasons).toEqual([
+      '#deploy: Missing Permissions (50013)',
+      '#inbox: Unknown Channel (10003)',
+      'DM: Cannot send messages to this user (50007)',
+    ])
+    expect(dm.fetched).toEqual([recipientId])
+    expect(logs).toHaveLength(3)
+  })
+
+  test('ends the chain when the DM fails', async () => {
+    const { deliver } = harness([], {
+      dm: { sendError: discordApiError(50007, 'Cannot send messages to this user') },
+    })
+
+    const failure = await failureOf(deliver({ ...notification, level: 'critical' }))
+
+    expect(failure.reasons).toEqual([
+      '#alerts: no such text channel in the Category',
+      '#inbox: no such text channel in the Category',
+      'DM: Cannot send messages to this user (50007)',
+    ])
+  })
+
+  test('reports a DM fetch failure with the DM prefix', async () => {
+    const { deliver } = harness([], { dm: { fetchError: new Error('Unknown User') } })
+
+    const failure = await failureOf(deliver(notification))
+
+    expect(failure.message).toBe('#inbox: no such text channel in the Category; DM: Unknown User')
+  })
+
+  test('logs one warning line per skipped or failed place', async () => {
+    const deploy = fakeChannel({ id: '100000000000000001', name: 'deploy', permissions: 0n })
+    const inbox = fakeChannel({
+      id: '100000000000000002',
+      name: 'inbox',
+      sendError: new Error('x'),
+    })
+    const { deliver, logs } = harness([deploy, inbox])
+
+    await failureOf(deliver({ ...notification, topic: 'deploy' }))
+
+    expect(logs).toEqual([
+      '#deploy: Missing Permissions (View Channel, Send Messages, Embed Links)',
+      '#inbox: x',
+    ])
   })
 })

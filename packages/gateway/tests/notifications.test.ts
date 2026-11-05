@@ -1,8 +1,9 @@
 import { describe, expect, spyOn, test } from 'bun:test'
 import { buildApi } from '../src/api'
 import type { GatewayStatus } from '../src/bot'
-import type { Deliver } from '../src/delivery'
-import { levels, type Notification } from '../src/notification'
+import { type Deliver, type Delivered, DeliveryFailed } from '../src/delivery'
+import { levels, type Notification, reservedTopics } from '../src/notification'
+import { fakeCategoryView } from './support'
 
 const apiToken = 'test-token'
 
@@ -13,7 +14,7 @@ const gateway: GatewayStatus = {
 }
 
 function buildHarness(deliver: Deliver) {
-  return buildApi({ deliver, gateway, apiToken })
+  return buildApi({ deliver, gateway, category: fakeCategoryView([]), apiToken })
 }
 
 function post(body: unknown, token: string | null = apiToken, path = '/v1/notifications'): Request {
@@ -30,14 +31,26 @@ function post(body: unknown, token: string | null = apiToken, path = '/v1/notifi
   })
 }
 
-function recorder() {
+function recorder(result: Delivered = { deliveredTo: '#inbox' }) {
   const delivered: Notification[] = []
 
   const deliver: Deliver = async notification => {
     delivered.push(notification)
+
+    return result
   }
 
   return { delivered, deliver }
+}
+
+async function statusOf(api: ReturnType<typeof buildHarness>): Promise<Record<string, unknown>> {
+  const response = await api.handle(
+    new Request('http://localhost/v1/status', {
+      headers: { authorization: `Bearer ${apiToken}` },
+    }),
+  )
+
+  return (await response.json()) as Record<string, unknown>
 }
 
 describe('POST /v1/notifications', () => {
@@ -53,6 +66,7 @@ describe('POST /v1/notifications', () => {
       source: 'grafana',
       level: 'info',
       status: 'delivered',
+      deliveredTo: '#inbox',
     })
   })
 
@@ -125,6 +139,87 @@ describe('POST /v1/notifications', () => {
     expect(await response.json()).toMatchObject({ level: 'info' })
   })
 
+  test('passes a valid Topic through', async () => {
+    const { delivered, deliver } = recorder()
+    const api = buildHarness(deliver)
+
+    const response = await api.handle(post({ source: 'a', text: 'b', topic: 'deploy' }))
+
+    expect(response.status).toBe(200)
+    expect(delivered).toEqual([{ source: 'a', level: 'info', topic: 'deploy', text: 'b' }])
+  })
+
+  test('strips an unknown field named like a Topic', async () => {
+    const { delivered, deliver } = recorder()
+    const api = buildHarness(deliver)
+
+    const response = await api.handle(post({ source: 'a', text: 'b', topik: 'deploy' }))
+
+    expect(response.status).toBe(200)
+    expect(delivered).toEqual([{ source: 'a', level: 'info', text: 'b' }])
+  })
+
+  for (const topic of ['CI', 'ci builds', 'ci_builds', '', 'x'.repeat(101)]) {
+    test(`rejects the malformed Topic ${JSON.stringify(topic)}`, async () => {
+      const { delivered, deliver } = recorder()
+      const api = buildHarness(deliver)
+
+      const response = await api.handle(post({ source: 'a', text: 'b', topic }))
+
+      expect(response.status).toBe(422)
+      expect(delivered).toEqual([])
+    })
+  }
+
+  for (const level of ['info', 'critical'] as const) {
+    for (const topic of reservedTopics) {
+      test(`rejects the reserved Topic ${topic} at ${level}`, async () => {
+        const { delivered, deliver } = recorder()
+        const api = buildHarness(deliver)
+
+        const response = await api.handle(post({ source: 'a', text: 'b', level, topic }))
+        const message =
+          topic === 'alerts'
+            ? '`alerts` is reserved: send Level `critical` to deliver to the alerts channel.'
+            : '`inbox` is reserved: omit the Topic to deliver to the inbox channel.'
+
+        expect(response.status).toBe(422)
+        expect(await response.json()).toEqual({
+          error: { code: 'reserved_topic', message },
+        })
+        expect(delivered).toEqual([])
+        expect(await statusOf(api)).toMatchObject({
+          notifications: { accepted: 0, delivered: 0, failed: 0, rerouted: 0 },
+        })
+      })
+    }
+  }
+
+  test('reports where Delivery landed', async () => {
+    const api = buildHarness(recorder({ deliveredTo: '#deploy' }).deliver)
+
+    expect(await (await api.handle(post({ source: 'a', text: 'b' }))).json()).toMatchObject({
+      deliveredTo: '#deploy',
+    })
+  })
+
+  test('reports a reroute', async () => {
+    const api = buildHarness(
+      recorder({
+        deliveredTo: '#inbox',
+        rerouted: { from: '#deploy', reasons: ['#deploy: Missing Permissions (50013)'] },
+      }).deliver,
+    )
+
+    expect(await (await api.handle(post({ source: 'a', text: 'b' }))).json()).toMatchObject({
+      deliveredTo: '#inbox',
+      rerouted: {
+        from: '#deploy',
+        reasons: ['#deploy: Missing Permissions (50013)'],
+      },
+    })
+  })
+
   test('rejects a request with no token', async () => {
     const { delivered, deliver } = recorder()
     const api = buildHarness(deliver)
@@ -158,12 +253,13 @@ describe('POST /v1/notifications', () => {
     expect(response.status).toBe(401)
   })
 
-  test('tells the caller when Delivery fails', async () => {
+  test('tells the caller every place a failed Delivery tried', async () => {
     const api = buildHarness(async () => {
-      const error = new Error('Cannot send messages to this user')
-      Reflect.set(error, 'code', 50007)
-
-      throw error
+      throw new DeliveryFailed([
+        '#deploy: Missing Permissions (50013)',
+        '#inbox: Unknown Channel (10003)',
+        'DM: Cannot send messages to this user (50007)',
+      ])
     })
 
     const response = await api.handle(post({ source: 'a', text: 'b' }))
@@ -172,12 +268,13 @@ describe('POST /v1/notifications', () => {
     expect(await response.json()).toEqual({
       error: {
         code: 'delivery_failed',
-        message: 'Cannot send messages to this user (Discord code 50007)',
+        message:
+          '#deploy: Missing Permissions (50013); #inbox: Unknown Channel (10003); DM: Cannot send messages to this user (50007)',
       },
     })
   })
 
-  test('describes a failure that carries no Discord code', async () => {
+  test('describes a failure that carries no reasons', async () => {
     const api = buildHarness(async () => {
       throw new Error('socket hang up')
     })
@@ -254,6 +351,27 @@ describe('POST /v1/messages', () => {
 
       expect(warn).toHaveBeenCalledTimes(1)
       expect(warn).toHaveBeenCalledWith(deprecationWarning)
+    } finally {
+      warn.mockRestore()
+    }
+  })
+
+  test('rejects a reserved Topic before the deprecation warning and the count', async () => {
+    const warn = spyOn(console, 'warn').mockImplementation(() => {})
+    const { delivered, deliver } = recorder()
+    const api = buildHarness(deliver)
+
+    try {
+      const response = await api.handle(
+        post({ source: 'grafana', text: 'b', topic: 'alerts' }, apiToken, '/v1/messages'),
+      )
+
+      expect(response.status).toBe(422)
+      expect(warn).not.toHaveBeenCalled()
+      expect(delivered).toEqual([])
+      expect(await statusOf(api)).toMatchObject({
+        notifications: { accepted: 0, delivered: 0, failed: 0, rerouted: 0 },
+      })
     } finally {
       warn.mockRestore()
     }
