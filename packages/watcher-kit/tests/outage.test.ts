@@ -18,7 +18,7 @@ function fakeShion() {
   }
 }
 
-function setup(options: { failuresBeforeWarning?: number } = {}) {
+function setup(options: { failuresBeforeWarning?: number; topic?: string } = {}) {
   const shion = fakeShion()
   const lines: string[] = []
   const reporter = createOutageReporter({
@@ -46,6 +46,30 @@ describe('createOutageReporter', () => {
       level: 'warning',
       text: "Can't check OpenCode's models: https://models.dev/api.json returned 503\nI'll keep trying and tell you when it works again.",
     })
+  })
+
+  test('carries the Topic on the warning and the recovery notice', async () => {
+    const { shion, reporter } = setup({ topic: 'models' })
+
+    await reporter.failed(new Error('offline'))
+    await reporter.failed(new Error('offline'))
+    await reporter.recovered()
+
+    expect(shion.sent.map(notification => notification.topic)).toEqual(['models', 'models'])
+  })
+
+  test('sends no topic key when no Topic is set', async () => {
+    const { shion, reporter } = setup()
+
+    await reporter.failed(new Error('offline'))
+    await reporter.failed(new Error('offline'))
+    await reporter.recovered()
+
+    expect(shion.sent).toHaveLength(2)
+
+    for (const notification of shion.sent) {
+      expect('topic' in notification).toBe(false)
+    }
   })
 
   test('says nothing when a single poll fails and the next one works', async () => {

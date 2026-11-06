@@ -17,6 +17,8 @@ export interface OutageReporter {
 export interface OutageReporterOptions {
   readonly send: SendNotification
   readonly source: string
+  /** The Topic both the warning and the recovery notice carry, such as `models`. */
+  readonly topic?: string
   /** What the Watcher checks, for the Notification text, such as "OpenCode's models". */
   readonly subject: string
   /** How many polls in a row must fail before the warning goes out. Defaults to 2. */
@@ -35,6 +37,7 @@ export function createOutageReporter(options: OutageReporterOptions): OutageRepo
   const {
     send,
     source,
+    topic,
     subject,
     failuresBeforeWarning = defaultFailuresBeforeWarning,
     log = console.log,
@@ -43,6 +46,10 @@ export function createOutageReporter(options: OutageReporterOptions): OutageRepo
   if (!Number.isInteger(failuresBeforeWarning) || failuresBeforeWarning < 1) {
     throw new Error('Invalid failuresBeforeWarning; expected an integer of at least 1.')
   }
+
+  // The Topic is spread in only when one is set, so a caller that sets none sends the same body it
+  // did before Topics existed: no `topic` key at all.
+  const routing = topic === undefined ? {} : { topic }
 
   // True once the Recipient has been told, so the warning goes out once per outage.
   let reported = false
@@ -63,6 +70,7 @@ export function createOutageReporter(options: OutageReporterOptions): OutageRepo
         await send({
           source,
           level: 'warning',
+          ...routing,
           text: `Can't check ${subject}: ${describeError(error)}\nI'll keep trying and tell you when it works again.`,
         })
         reported = true
@@ -80,7 +88,7 @@ export function createOutageReporter(options: OutageReporterOptions): OutageRepo
       }
 
       try {
-        await send({ source, level: 'info', text: `Checking ${subject} again.` })
+        await send({ source, level: 'info', ...routing, text: `Checking ${subject} again.` })
         reported = false
       } catch (sendError) {
         log(`Could not tell Shion that checking ${subject} recovered: ${describeError(sendError)}`)

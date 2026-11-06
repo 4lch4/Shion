@@ -13,7 +13,7 @@ import {
   runWatcher,
 } from '@shion/watcher-kit'
 import { createCatalog } from './catalog'
-import { loadOpenCodeWatcherConfig, type OpenCodeWatcherConfig, source } from './config'
+import { loadOpenCodeWatcherConfig, type OpenCodeWatcherConfig, source, topic } from './config'
 import type { WatcherState } from './state'
 import { createWatcher } from './watcher'
 
@@ -35,6 +35,7 @@ async function main(): Promise<void> {
     send: createShionSender(config.shionUrl, config.apiToken),
     store: createJsonStateStore<WatcherState>(config.stateFile),
     source,
+    topic,
   })
 
   await heartbeat.touch()

@@ -5,9 +5,12 @@ and sends a Notification when they change. It is not part of the Gateway. It cal
 `POST /v1/notifications` like any other Source, and it ships as its own image and its own app on the
 server, so a Watcher change never releases or restarts the Gateway. [ADR 4][adr-4] explains why.
 
-- **Source:** `opencode/models`. **Level:** `info`.
+- **Source:** `opencode/models`. **Topic:** `models`. **Level:** `info`.
 - **When:** every 5 minutes. All the changes one poll finds go in one Notification, grouped by plan.
 - **Cost:** nothing. Every source is public and needs no account or key.
+
+Every post carries the Topic `models`, outage warnings included, so it lands in the `#models`
+channel. If that channel doesn't exist, posts land in `#inbox`, marked "no channel matched".
 
 [adr-4]: ../../docs/adr/0004-watchers-as-separate-images.md
 

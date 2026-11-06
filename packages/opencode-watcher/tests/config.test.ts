@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { loadOpenCodeWatcherConfig } from '../src/config'
+import { loadOpenCodeWatcherConfig, topic } from '../src/config'
 
 describe('loadOpenCodeWatcherConfig', () => {
   const required = { API_TOKEN: 'api-token' }
@@ -49,5 +49,11 @@ describe('loadOpenCodeWatcherConfig', () => {
         OPENCODE_WATCHER_POLL_INTERVAL_SECONDS: '2.5',
       }),
     ).toThrow('OPENCODE_WATCHER_POLL_INTERVAL_SECONDS')
+  })
+})
+
+describe('topic', () => {
+  test('is models, so every Notification lands in #models', () => {
+    expect(topic).toBe('models')
   })
 })
