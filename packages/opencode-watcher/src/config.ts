@@ -15,6 +15,9 @@ export interface OpenCodeWatcherConfig extends ShionTarget {
 /** The Source the Watcher's Notifications come from. */
 export const source = 'opencode/models'
 
+/** The Topic every Notification from this Watcher carries, so it lands in `#models`. */
+export const topic = 'models'
+
 const defaultPollIntervalSeconds = 300
 const minimumPollIntervalSeconds = 60
 const defaultStateFile = 'data/opencode-watcher.json'

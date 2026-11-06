@@ -12,6 +12,13 @@ export type Level = (typeof levels)[number]
 export interface Notification {
   readonly source: string
   readonly level: Level
+  /**
+   * What the Notification is about, such as `models`. It picks the text channel in the Category
+   * with that name, unless the Level is `critical`. The Gateway checks the format: lowercase
+   * letters, digits and hyphens, 1–100 characters, and not `alerts` or `inbox`. A Gateway older
+   * than 0.5.0 ignores it and delivers to the DM.
+   */
+  readonly topic?: string
   readonly text: string
 }
 

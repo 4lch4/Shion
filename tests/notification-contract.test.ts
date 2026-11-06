@@ -7,7 +7,9 @@
 import { describe, expect, test } from 'bun:test'
 import { Value } from '@sinclair/typebox/value'
 import { notificationBodySchema } from '../packages/gateway/src/api/schema'
+import { reservedTopics } from '../packages/gateway/src/notification'
 import { formatBaseline } from '../packages/opencode-watcher/src/changes'
+import { topic } from '../packages/opencode-watcher/src/config'
 import {
   createOutageReporter,
   levels,
@@ -32,13 +34,14 @@ describe('the watcher-kit Notification and the Gateway’s request schema', () =
       },
     })
 
-    expect(validates({ source: 'opencode/models', level: 'info', text })).toBe(true)
+    expect(validates({ source: 'opencode/models', level: 'info', topic, text })).toBe(true)
   })
 
   test('the outage warning and recovery the kit builds', async () => {
     const sent: Notification[] = []
     const reporter = createOutageReporter({
       source: 'opencode/models',
+      topic,
       subject: "OpenCode's models",
       send: async notification => {
         sent.push(notification)
@@ -53,8 +56,14 @@ describe('the watcher-kit Notification and the Gateway’s request schema', () =
     expect(sent.map(notification => notification.level)).toEqual(['warning', 'info'])
 
     for (const notification of sent) {
+      expect(notification.topic).toBe(topic)
       expect(validates(notification)).toBe(true)
     }
+  })
+
+  test('the Topic the OpenCode Watcher sends is one the Gateway accepts', () => {
+    expect(validates({ source: 'opencode/models', level: 'info', topic, text: 'hi' })).toBe(true)
+    expect(reservedTopics).not.toContain(topic)
   })
 
   test('every Level the kit knows is one the Gateway accepts', () => {
@@ -82,6 +91,14 @@ describe('the watcher-kit Notification and the Gateway’s request schema', () =
       Value.Check(notificationBodySchema, {
         source: '',
         level: 'info',
+        text: 'hi',
+      }),
+    ).toBe(false)
+    expect(
+      Value.Check(notificationBodySchema, {
+        source: 'opencode/models',
+        level: 'info',
+        topic: 'Models',
         text: 'hi',
       }),
     ).toBe(false)

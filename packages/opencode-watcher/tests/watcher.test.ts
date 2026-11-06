@@ -88,6 +88,7 @@ function setup(initial?: WatcherState, first: Snapshot = start) {
     send: shion.send,
     store,
     source: 'opencode/models',
+    topic: 'models',
     log: () => {},
   })
 
@@ -100,7 +101,11 @@ describe('createWatcher', () => {
 
     expect(await watcher.poll()).toEqual({ delivered: 0 })
     expect(shion.sent).toHaveLength(1)
-    expect(shion.sent[0]).toMatchObject({ source: 'opencode/models', level: 'info' })
+    expect(shion.sent[0]).toMatchObject({
+      source: 'opencode/models',
+      level: 'info',
+      topic: 'models',
+    })
     expect(shion.sent[0]?.text).toContain('Big Pickle')
     expect(store.current).toEqual(seeded)
   })
@@ -144,6 +149,7 @@ describe('createWatcher', () => {
       {
         source: 'opencode/models',
         level: 'info',
+        topic: 'models',
         text: '**Zen**\nNew: `jev-1.13-free`, free\n\n**Go**\nNew: `omen-alpha`',
       },
     ])
@@ -210,6 +216,7 @@ describe('createWatcher', () => {
     expect(shion.sent).toHaveLength(1)
     expect(shion.sent[0]?.level).toBe('warning')
     expect(shion.sent[0]?.source).toBe('opencode/models')
+    expect(shion.sent[0]?.topic).toBe('models')
     expect(shion.sent[0]?.text).toContain('returned 503')
 
     catalog.fail(undefined)
@@ -217,6 +224,11 @@ describe('createWatcher', () => {
     await watcher.poll()
 
     expect(shion.sent.map(notification => notification.level)).toEqual(['warning', 'info', 'info'])
+    expect(shion.sent.map(notification => notification.topic)).toEqual([
+      'models',
+      'models',
+      'models',
+    ])
     expect(shion.sent[1]?.text).toContain('again')
     expect(shion.sent[2]?.text).toContain('jev-1.13-free')
   })

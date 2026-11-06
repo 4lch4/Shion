@@ -32,13 +32,21 @@ await runWatcher({
   intervalMs: 300_000,
   poll: async () => {
     try {
-      await send({ source: 'example/watcher', level: 'info', text: 'Still here.' })
+      await send({
+        source: 'example/watcher',
+        level: 'info',
+        topic: 'example',
+        text: 'Still here.',
+      })
     } finally {
       await heartbeat.touch()
     }
   },
 })
 ```
+
+A Topic is optional, and it picks the text channel in the Category with that name, unless the Level
+is `critical`.
 
 `notification.ts` keeps its own copy of the request type rather than importing the Gateway's, so a
 Gateway release never forces a kit release. `tests/notification-contract.test.ts` at the repository

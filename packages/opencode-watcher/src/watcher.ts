@@ -13,6 +13,8 @@ export interface WatcherDeps {
   readonly send: SendNotification
   readonly store: StateStore<WatcherState>
   readonly source: string
+  /** The Topic every Notification this Watcher sends carries, outage notices included. */
+  readonly topic: string
   readonly log?: (line: string) => void
 }
 
@@ -26,8 +28,8 @@ export interface Watcher {
 }
 
 export function createWatcher(deps: WatcherDeps): Watcher {
-  const { catalog, send, store, source, log = console.log } = deps
-  const outage = createOutageReporter({ send, source, subject: "OpenCode's models", log })
+  const { catalog, send, store, source, topic, log = console.log } = deps
+  const outage = createOutageReporter({ send, source, topic, subject: "OpenCode's models", log })
   let state: WatcherState | undefined
 
   async function save(last: CatalogRead): Promise<void> {
@@ -60,7 +62,7 @@ export function createWatcher(deps: WatcherDeps): Watcher {
         // First run: say what's free now and remember the catalog, rather than reporting every
         // model as new.
         try {
-          await send({ source, level: 'info', text: formatBaseline(current.snapshot) })
+          await send({ source, level: 'info', topic, text: formatBaseline(current.snapshot) })
         } catch (error) {
           log(
             `Could not deliver the first Notification; retrying next poll: ${describeError(error)}`,
@@ -81,7 +83,7 @@ export function createWatcher(deps: WatcherDeps): Watcher {
 
       if (changes.length > 0) {
         try {
-          await send({ source, level: 'info', text: formatChanges(changes) })
+          await send({ source, level: 'info', topic, text: formatChanges(changes) })
         } catch (error) {
           // Keep the old snapshot, so the next poll finds these changes again.
           log(

@@ -38,6 +38,29 @@ describe('createShionSender', () => {
     expect(JSON.parse(String(calls[0]?.init?.body))).toEqual(notification)
   })
 
+  test('sends a Topic in the request body when there is one', async () => {
+    const { calls, fetch } = fakeFetch({
+      'http://shion-gateway:3000/v1/notifications': () => json({ status: 'delivered' }),
+    })
+    const withTopic = { ...notification, topic: 'models' }
+
+    await createShionSender('http://shion-gateway:3000', 'api-token', fetch)(withTopic)
+
+    expect(JSON.parse(String(calls[0]?.init?.body))).toEqual(withTopic)
+  })
+
+  test('sends no topic key when the Notification has no Topic', async () => {
+    const { calls, fetch } = fakeFetch({
+      'http://shion-gateway:3000/v1/notifications': () => json({ status: 'delivered' }),
+    })
+
+    await createShionSender('http://shion-gateway:3000', 'api-token', fetch)(notification)
+
+    const body = JSON.parse(String(calls[0]?.init?.body)) as Record<string, unknown>
+    expect(body).toEqual(notification)
+    expect('topic' in body).toBe(false)
+  })
+
   test('throws with Shion’s reason when delivery fails', async () => {
     const { fetch } = fakeFetch({
       'http://shion-gateway:3000/v1/notifications': () =>
