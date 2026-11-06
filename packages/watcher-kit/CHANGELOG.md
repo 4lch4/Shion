@@ -1,5 +1,12 @@
 # @shion/watcher-kit
 
+## 0.3.0
+
+### Minor Changes
+
+- [#65](https://github.com/4lch4/Shion/pull/65) [`07551ff`](https://github.com/4lch4/Shion/commit/07551ffe0472ab1fc1ff2a3644393b596714067d) Thanks [@4lch4](https://github.com/4lch4)! - Notifications and the outage reporter can carry a Topic, which picks the channel the Gateway
+  delivers to.
+
 ## 0.2.0
 
 ### Minor Changes

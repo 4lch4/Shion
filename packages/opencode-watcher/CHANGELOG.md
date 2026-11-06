@@ -1,5 +1,17 @@
 # opencode-watcher
 
+## 0.2.0
+
+### Minor Changes
+
+- [#65](https://github.com/4lch4/Shion/pull/65) [`07551ff`](https://github.com/4lch4/Shion/commit/07551ffe0472ab1fc1ff2a3644393b596714067d) Thanks [@4lch4](https://github.com/4lch4)! - Every Notification now carries the Topic `models`, so it lands in the `#models` channel instead of
+  `#inbox`.
+
+### Patch Changes
+
+- Updated dependencies [[`07551ff`](https://github.com/4lch4/Shion/commit/07551ffe0472ab1fc1ff2a3644393b596714067d)]:
+  - @shion/watcher-kit@0.3.0
+
 ## 0.1.3
 
 ### Patch Changes
