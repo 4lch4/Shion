@@ -2,6 +2,7 @@ import { openapi } from '@elysia/openapi'
 import { Elysia } from 'elysia'
 import pkg from '../../package.json'
 import type { GatewayStatus } from '../bot'
+import type { CategoryHealthProvider } from '../category'
 import type { Deliver } from '../delivery'
 import { digestToken, isAuthorized, unauthorizedResponse } from './auth'
 import type { Counters } from './counters'
@@ -12,11 +13,12 @@ import { statusRoute } from './status'
 export interface ApiOptions {
   deliver: Deliver
   gateway: GatewayStatus
+  category: CategoryHealthProvider
   apiToken: string
 }
 
-export function buildApi({ deliver, gateway, apiToken }: ApiOptions) {
-  const counters: Counters = { accepted: 0, delivered: 0, failed: 0 }
+export function buildApi({ deliver, gateway, category, apiToken }: ApiOptions) {
+  const counters: Counters = { accepted: 0, delivered: 0, failed: 0, rerouted: 0 }
   const expected = digestToken(apiToken)
 
   return new Elysia()
@@ -27,7 +29,7 @@ export function buildApi({ deliver, gateway, apiToken }: ApiOptions) {
             title: 'Shion',
             version: pkg.version,
             description:
-              'Shion is my notification hub. Anything that can make an HTTP request hands it a Notification, and Shion delivers that Notification to me by Discord DM.',
+              'Shion is my notification hub. Anything that can make an HTTP request hands it a Notification, and Shion delivers that Notification to a text channel in my Discord category, or to my DM when no channel can be used.',
           },
           components: {
             securitySchemes: {
@@ -48,6 +50,6 @@ export function buildApi({ deliver, gateway, apiToken }: ApiOptions) {
           isAuthorized(request, expected) ? undefined : unauthorizedResponse(),
         )
         .use(notificationsRoute(deliver, counters))
-        .use(statusRoute(gateway, counters)),
+        .use(statusRoute(gateway, category, counters)),
     )
 }

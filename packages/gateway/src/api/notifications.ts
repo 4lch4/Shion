@@ -1,18 +1,20 @@
 import { Elysia } from 'elysia'
-import type { Deliver } from '../delivery'
+import { type Deliver, DeliveryFailed } from '../delivery'
+import { isReservedTopic, type ReservedTopic } from '../notification'
 import type { Counters } from './counters'
 import { notificationBodySchema } from './schema'
 
-function describeFailure(error: unknown): string {
-  if (error instanceof Error) {
-    const code: unknown = Reflect.get(error, 'code')
+const reservedTopicMessages = {
+  alerts: '`alerts` is reserved: send Level `critical` to deliver to the alerts channel.',
+  inbox: '`inbox` is reserved: omit the Topic to deliver to the inbox channel.',
+} satisfies Record<ReservedTopic, string>
 
-    return typeof code === 'number' || typeof code === 'string'
-      ? `${error.message} (Discord code ${String(code)})`
-      : error.message
+function describeFailure(error: unknown): string {
+  if (error instanceof DeliveryFailed) {
+    return error.message
   }
 
-  return 'Delivery failed for an unknown reason.'
+  return error instanceof Error ? error.message : 'Delivery failed for an unknown reason.'
 }
 
 function deliveryRoute(
@@ -26,6 +28,12 @@ function deliveryRoute(
   return new Elysia().post(
     path,
     async ({ body, status }) => {
+      if (body.topic !== undefined && isReservedTopic(body.topic)) {
+        return status(422, {
+          error: { code: 'reserved_topic', message: reservedTopicMessages[body.topic] },
+        })
+      }
+
       const id = crypto.randomUUID()
       counters.accepted += 1
 
@@ -36,7 +44,23 @@ function deliveryRoute(
       }
 
       try {
-        await deliver(body)
+        const delivered = await deliver(body)
+
+        counters.delivered += 1
+
+        if (delivered.rerouted !== undefined) {
+          counters.rerouted += 1
+        }
+
+        return {
+          id,
+          source: body.source,
+          level: body.level,
+          status: 'delivered' as const,
+          deliveredAt: new Date().toISOString(),
+          deliveredTo: delivered.deliveredTo,
+          ...(delivered.rerouted === undefined ? {} : { rerouted: delivered.rerouted }),
+        }
       } catch (error) {
         counters.failed += 1
         console.error('Delivery failed.', error)
@@ -44,16 +68,6 @@ function deliveryRoute(
         return status(502, {
           error: { code: 'delivery_failed', message: describeFailure(error) },
         })
-      }
-
-      counters.delivered += 1
-
-      return {
-        id,
-        source: body.source,
-        level: body.level,
-        status: 'delivered' as const,
-        deliveredAt: new Date().toISOString(),
       }
     },
     { body: notificationBodySchema, detail },

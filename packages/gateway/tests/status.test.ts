@@ -1,7 +1,9 @@
 import { describe, expect, test } from 'bun:test'
 import { buildApi } from '../src/api'
 import type { GatewayStatus } from '../src/bot'
+import type { CategoryView } from '../src/category'
 import type { Deliver } from '../src/delivery'
+import { fakeCategoryView, fakeChannel } from './support'
 
 const apiToken = 'test-token'
 
@@ -11,10 +13,20 @@ const ready: GatewayStatus = {
   uptimeMs: () => 4321,
 }
 
-const noop: Deliver = async () => {}
+const noop: Deliver = async () => ({ deliveredTo: '#inbox' })
 
-function buildHarness(gateway: GatewayStatus = ready, deliver: Deliver = noop) {
-  return buildApi({ deliver, gateway, apiToken })
+interface HarnessOptions {
+  gateway?: GatewayStatus
+  deliver?: Deliver
+  category?: CategoryView
+}
+
+function buildHarness({
+  gateway = ready,
+  deliver = noop,
+  category = fakeCategoryView([]),
+}: HarnessOptions = {}) {
+  return buildApi({ deliver, gateway, category, apiToken })
 }
 
 function statusRequest(token: string | null = apiToken): Request {
@@ -50,7 +62,7 @@ describe('GET /v1/status', () => {
     expect(await response.json()).toMatchObject({
       status: 'ready',
       bot: { tag: 'shion#0001', uptimeMs: 4321 },
-      notifications: { accepted: 0, delivered: 0, failed: 0 },
+      notifications: { accepted: 0, delivered: 0, failed: 0, rerouted: 0 },
     })
   })
 
@@ -61,15 +73,49 @@ describe('GET /v1/status', () => {
   })
 
   test('reports degraded when the Discord connection drops', async () => {
-    const api = buildHarness({ ...ready, isReady: () => false })
+    const api = buildHarness({ gateway: { ...ready, isReady: () => false } })
 
     expect(await readStatus(api)).toMatchObject({ status: 'degraded' })
   })
 
+  test('stays ready when only the Category is broken', async () => {
+    const api = buildHarness({ category: fakeCategoryView([], { found: false }) })
+
+    expect(await readStatus(api)).toMatchObject({
+      status: 'ready',
+      category: { found: false, alerts: { state: 'missing' }, inbox: { state: 'missing' } },
+    })
+  })
+
   test('reports a Recipient that has not identified itself', async () => {
-    const api = buildHarness({ ...ready, tag: () => null })
+    const api = buildHarness({ gateway: { ...ready, tag: () => null } })
 
     expect(await readStatus(api)).toMatchObject({ bot: { tag: null } })
+  })
+
+  test('reports the Category health', async () => {
+    const alerts = fakeChannel({ id: '100000000000000001', name: 'alerts' })
+    const inbox = fakeChannel({
+      id: '100000000000000002',
+      name: 'inbox',
+      permissions: 1024n,
+    })
+    const deploy = fakeChannel({
+      id: '100000000000000003',
+      name: 'deploy',
+      permissions: 2048n,
+    })
+    const api = buildHarness({ category: fakeCategoryView([alerts, inbox, deploy]) })
+
+    expect(await readStatus(api)).toMatchObject({
+      category: {
+        id: '123456789012345678',
+        found: true,
+        alerts: { state: 'ok' },
+        inbox: { state: 'unusable', missing: ['Send Messages', 'Embed Links'] },
+        unusableTopicChannels: [{ name: 'deploy', missing: ['View Channel', 'Embed Links'] }],
+      },
+    })
   })
 
   test('requires the API token', async () => {
@@ -85,19 +131,36 @@ describe('GET /v1/status', () => {
     await api.handle(notificationRequest())
 
     expect(await readStatus(api)).toMatchObject({
-      notifications: { accepted: 2, delivered: 2, failed: 0 },
+      notifications: { accepted: 2, delivered: 2, failed: 0, rerouted: 0 },
     })
   })
 
+  test('counts a rerouted Notification as delivered too', async () => {
+    const api = buildHarness({
+      deliver: async () => ({
+        deliveredTo: '#inbox',
+        rerouted: { from: '#deploy', reasons: ['#deploy: Missing Permissions (50013)'] },
+      }),
+    })
+
+    await api.handle(notificationRequest())
+
+    const counters = { accepted: 1, delivered: 1, failed: 0, rerouted: 1 }
+
+    expect(await readStatus(api)).toMatchObject({ notifications: counters, messages: counters })
+  })
+
   test('counts a Notification it could not deliver', async () => {
-    const api = buildHarness(ready, async () => {
-      throw new Error('nope')
+    const api = buildHarness({
+      deliver: async () => {
+        throw new Error('nope')
+      },
     })
 
     await api.handle(notificationRequest())
 
     expect(await readStatus(api)).toMatchObject({
-      notifications: { accepted: 1, delivered: 0, failed: 1 },
+      notifications: { accepted: 1, delivered: 0, failed: 1, rerouted: 0 },
     })
   })
 
@@ -107,7 +170,7 @@ describe('GET /v1/status', () => {
     await api.handle(statusRequest('wrong-token'))
 
     expect(await readStatus(api)).toMatchObject({
-      notifications: { accepted: 0, delivered: 0, failed: 0 },
+      notifications: { accepted: 0, delivered: 0, failed: 0, rerouted: 0 },
     })
   })
 
@@ -118,10 +181,10 @@ describe('GET /v1/status', () => {
     await first.handle(notificationRequest())
 
     expect(await readStatus(first)).toMatchObject({
-      notifications: { accepted: 1, delivered: 1, failed: 0 },
+      notifications: { accepted: 1, delivered: 1, failed: 0, rerouted: 0 },
     })
     expect(await readStatus(second)).toMatchObject({
-      notifications: { accepted: 0, delivered: 0, failed: 0 },
+      notifications: { accepted: 0, delivered: 0, failed: 0, rerouted: 0 },
     })
   })
 
@@ -131,7 +194,7 @@ describe('GET /v1/status', () => {
     await api.handle(notificationRequest())
     await api.handle(notificationRequest('/v1/messages'))
 
-    const counters = { accepted: 2, delivered: 2, failed: 0 }
+    const counters = { accepted: 2, delivered: 2, failed: 0, rerouted: 0 }
 
     expect(await readStatus(api)).toMatchObject({ notifications: counters, messages: counters })
   })

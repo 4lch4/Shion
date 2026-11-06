@@ -8,6 +8,7 @@ export interface DiscordConfig {
 
 export interface GatewayConfig extends DiscordConfig {
   recipientId: string
+  categoryId: string
   apiToken: string
   apiPort: number
   apiHost: string
@@ -15,6 +16,7 @@ export interface GatewayConfig extends DiscordConfig {
 
 const defaultApiPort = 3000
 const defaultApiHost = '0.0.0.0'
+const discordIdPattern = /^\d{17,20}$/
 
 function requireValue(environment: Environment, names: readonly string[], label: string): string {
   const value = optionalValue(environment, names)
@@ -71,6 +73,12 @@ export function loadDiscordConfig(environment: Environment = process.env): Disco
 }
 
 export function loadConfig(environment: Environment = process.env): GatewayConfig {
+  const categoryId = requireValue(environment, ['DISCORD_CATEGORY_ID'], 'Discord category ID')
+
+  if (!discordIdPattern.test(categoryId)) {
+    throw new Error('Invalid DISCORD_CATEGORY_ID; expected a Discord ID.')
+  }
+
   return {
     ...loadDiscordConfig(environment),
     recipientId: requireValue(
@@ -78,6 +86,7 @@ export function loadConfig(environment: Environment = process.env): GatewayConfi
       ['RECIPIENT_USER_ID', 'DISCORD_RECIPIENT_ID'],
       'Recipient user ID',
     ),
+    categoryId,
     apiToken: requireValue(environment, ['API_TOKEN', 'SHION_API_TOKEN'], 'API token'),
     apiPort: requirePort(environment, ['API_PORT'], defaultApiPort),
     apiHost: optionalValue(environment, ['API_HOST']) ?? defaultApiHost,

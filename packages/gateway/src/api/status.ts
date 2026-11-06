@@ -1,11 +1,17 @@
 import { Elysia } from 'elysia'
 import type { GatewayStatus } from '../bot'
+import type { CategoryHealthProvider } from '../category'
 import type { Counters } from './counters'
 
-export function statusRoute(gateway: GatewayStatus, counters: Counters) {
+export function statusRoute(
+  gateway: GatewayStatus,
+  category: CategoryHealthProvider,
+  counters: Counters,
+) {
   return new Elysia().get('/status', () => ({
     status: gateway.isReady() ? ('ready' as const) : ('degraded' as const),
     bot: { tag: gateway.tag(), uptimeMs: gateway.uptimeMs() },
+    category: category.health(),
     notifications: { ...counters },
     // Deprecated: the same counters under their name from before ADR 6.
     messages: { ...counters },
