@@ -50,8 +50,10 @@ describe('loadOpenCodeWatcherConfig', () => {
       }),
     ).toThrow('OPENCODE_WATCHER_POLL_INTERVAL_SECONDS')
   })
+})
 
-  test('sends every Notification with the models Topic', () => {
+describe('topic', () => {
+  test('is models, so every Notification lands in #models', () => {
     expect(topic).toBe('models')
   })
 })
