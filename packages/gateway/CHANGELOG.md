@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.5.0
+
+### Minor Changes
+
+- [#62](https://github.com/4lch4/Shion/pull/62) [`8569a14`](https://github.com/4lch4/Shion/commit/8569a14cb6a22c4d2d0027f9ff955a93a3fc017a) Thanks [@4lch4](https://github.com/4lch4)! - Notifications now land in text channels in the Discord category named by `DISCORD_CATEGORY_ID`,
+  instead of always in my DM. A Notification's optional `topic` picks the channel named after it, a
+  `critical` Notification lands in `#alerts` and mentions me, and one with no Topic or no matching
+  channel lands in `#inbox`. When a channel can't be used, Delivery falls back to `#inbox` and then
+  to my DM, and the response reports `deliveredTo` and, after a fallback, `rerouted`.
+  
+  `DISCORD_CATEGORY_ID` is now required, and the Gateway refuses to start without it.
+
 ## 0.4.0
 
 ### Minor Changes
