@@ -1,6 +1,7 @@
 import { Elysia } from 'elysia'
 import { type Deliver, DeliveryFailed } from '../delivery'
 import { isReservedTopic, type ReservedTopic } from '../notification'
+import { posthog } from '../posthog'
 import type { Counters } from './counters'
 import { notificationBodySchema } from './schema'
 
@@ -29,6 +30,11 @@ function deliveryRoute(
     path,
     async ({ body, status }) => {
       if (body.topic !== undefined && isReservedTopic(body.topic)) {
+        posthog?.capture({
+          event: 'notification_rejected',
+          properties: { rejection_reason: 'reserved_topic', notification_level: body.level },
+        })
+
         return status(422, {
           error: { code: 'reserved_topic', message: reservedTopicMessages[body.topic] },
         })
@@ -52,6 +58,15 @@ function deliveryRoute(
           counters.rerouted += 1
         }
 
+        posthog?.capture({
+          event: 'notification_delivered',
+          properties: {
+            notification_level: body.level,
+            rerouted: delivered.rerouted !== undefined,
+            used_deprecated_route: deprecated,
+          },
+        })
+
         return {
           id,
           source: body.source,
@@ -64,6 +79,13 @@ function deliveryRoute(
       } catch (error) {
         counters.failed += 1
         console.error('Delivery failed.', error)
+        posthog?.capture({
+          event: 'notification_delivery_failed',
+          properties: {
+            notification_level: body.level,
+            used_deprecated_route: deprecated,
+          },
+        })
 
         return status(502, {
           error: { code: 'delivery_failed', message: describeFailure(error) },

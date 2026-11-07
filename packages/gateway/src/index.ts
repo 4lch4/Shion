@@ -5,6 +5,8 @@ import { createDiscordClient, toGatewayStatus } from './bot'
 import { createDiscordCategoryView } from './category'
 import { loadConfig } from './config'
 import { createDeliverer } from './delivery'
+import { posthog } from './posthog'
+import { posthogLogger, shutdownPostHogLogs } from './posthog-logs'
 import { checkStartup } from './startup'
 
 async function main(): Promise<void> {
@@ -46,12 +48,20 @@ async function main(): Promise<void> {
   api.listen({ hostname: config.apiHost, port: config.apiPort })
   console.log(`Gateway API listening on http://${config.apiHost}:${config.apiPort}/v1`)
   console.log(`API docs at http://${config.apiHost}:${config.apiPort}/docs`)
+  posthogLogger?.emit({ severityText: 'info', body: 'gateway_ready' })
 
   for (const signal of ['SIGINT', 'SIGTERM'] as const) {
     process.on(signal, () => {
       console.log(`Received ${signal}; shutting down.`)
+      posthogLogger?.emit({
+        severityText: 'info',
+        body: 'gateway_shutdown_started',
+        attributes: { signal },
+      })
 
-      void api.stop(true).then(() => {
+      void api.stop(true).then(async () => {
+        await posthog?.shutdown(3000).catch(() => {})
+        await shutdownPostHogLogs()
         client.destroy()
         process.exit(0)
       })
@@ -62,6 +72,8 @@ async function main(): Promise<void> {
 try {
   await main()
 } catch (error) {
+  posthogLogger?.emit({ severityText: 'error', body: 'gateway_start_failed' })
   console.error('Failed to start Shion.', error)
+  await shutdownPostHogLogs()
   process.exitCode = 1
 }

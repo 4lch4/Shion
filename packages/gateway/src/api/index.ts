@@ -4,6 +4,7 @@ import pkg from '../../package.json'
 import type { GatewayStatus } from '../bot'
 import type { CategoryHealthProvider } from '../category'
 import type { Deliver } from '../delivery'
+import { posthog } from '../posthog'
 import { digestToken, isAuthorized, unauthorizedResponse } from './auth'
 import type { Counters } from './counters'
 import { healthRoute } from './health'
@@ -43,6 +44,9 @@ export function buildApi({ deliver, gateway, category, apiToken }: ApiOptions) {
         specPath: '/docs/json',
       }),
     )
+    .onError(({ error }) => {
+      posthog?.captureException(error, 'gateway')
+    })
     .use(healthRoute(gateway))
     .group('/v1', v1 =>
       v1
