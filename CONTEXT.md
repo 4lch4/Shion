@@ -64,6 +64,12 @@ change it finds to the Gateway as a Notification. The Gateway treats it like any
 Watcher is not part of the Gateway.
 _Avoid_: Poller, monitor, integration
 
+**Log**:
+A record of what Shion did, written for agents rather than the Recipient, and kept outside
+Discord. A Log never becomes a Notification: anything the Recipient must know is sent as a
+Notification on purpose, even when it is also logged.
+_Avoid_: Notification, alert, event, message
+
 **Guild**:
 A Discord server, in Discord's API term. Shion's bot must share a Guild with the Recipient to DM
 them.
@@ -101,3 +107,5 @@ _Avoid_: Box
 - The **Gateway** performs exactly one **Delivery** per accepted **Notification**.
 - A **Watcher** is a **Source**, and also the **Caller** for what it sends. The **Gateway** does not
   know which Sources are Watchers.
+- **Notifications** are for the **Recipient**; **Logs** are for agents. One happening can produce
+  both, but neither turns into the other.
