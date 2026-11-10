@@ -52,5 +52,13 @@
         "useSortedPackageJson": "on"
       }
     }
-  }
+  },
+  "overrides": [
+    {
+      "includes": ["**/*.md"],
+      "formatter": {
+        "enabled": false
+      }
+    }
+  ]
 }
