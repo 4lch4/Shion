@@ -33,7 +33,7 @@ other Compose projects reach it as `shion-gateway`.
    [`docs/configuration.md`](./docs/configuration.md#the-shion-category). This comes before
    `.env`, because `DISCORD_CATEGORY_ID` needs it.
 4. `cd packages/gateway && cp .env.example .env`, then fill it in from
-   [`docs/configuration.md`](./docs/configuration.md).
+   [`docs/configuration.md`](./docs/configuration.md#environment-variables).
 5. Register the slash command with `bun run deploy:commands`.
 6. Start the Gateway with `bun run dev`.
 7. Invite the bot with the permissions in
@@ -56,8 +56,8 @@ other Compose projects reach it as `shion-gateway`.
 
 - [`docs/api.md`](./docs/api.md) — the HTTP API: auth, the route table,
   `POST /v1/notifications`, `GET /v1/status` and `GET /health`.
-- [`docs/configuration.md`](./docs/configuration.md) — every environment variable, the Shion
-  Category and the bot's invite and permissions.
+- [`docs/configuration.md`](./docs/configuration.md) — the Shion Category, every environment
+  variable, and the bot's invite and permissions.
 - [`docs/operations.md`](./docs/operations.md) — releases, deployment, redeploying and rolling
   back, and running on the server.
 - [`docs/development.md`](./docs/development.md) — Docker Compose, the quality checks and the Bun

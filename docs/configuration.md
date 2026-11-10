@@ -1,5 +1,24 @@
 # Configuration
 
+## The Shion Category
+
+Create one Discord category and put its ID in `DISCORD_CATEGORY_ID`. Inside it, create text
+channels with these names:
+
+- `alerts` — `critical` Notifications land here and mention me.
+- `inbox` — Notifications with no Topic, or whose Topic has no channel.
+- One channel per Topic, named exactly after it (`deploy`, `ci`, and so on).
+
+Sync each channel's permissions to the Category, so the bot's role has exactly View Channel, Send
+Messages and Embed Links there. Set the Category, or the whole server, to "Only @mentions": the
+Gateway mentions me only on `critical` Notifications.
+
+Renaming a channel changes the route with no warning. Shion reads the Discord cache on every
+Delivery, so adding or renaming a channel takes effect immediately, and a duplicate name goes to
+the channel higher in the sidebar.
+
+## Environment variables
+
 | Variable                                                            | Required | Default   |
 | ------------------------------------------------------------------- | -------- | --------- |
 | `DISCORD_APP_ID` or `DISCORD_APPLICATION_ID` or `DISCORD_CLIENT_ID` | yes      | —         |
@@ -29,23 +48,6 @@ Three values the template can't generate:
   The bot must share a guild with me, otherwise Discord refuses to open the DM.
 - `API_TOKEN` — the shared secret Callers authenticate with. I generate one with
   `openssl rand -hex 32`. The Gateway refuses to start without it.
-
-## The Shion Category
-
-Create one Discord category and put its ID in `DISCORD_CATEGORY_ID`. Inside it, create text
-channels with these names:
-
-- `alerts` — `critical` Notifications land here and mention me.
-- `inbox` — Notifications with no Topic, or whose Topic has no channel.
-- One channel per Topic, named exactly after it (`deploy`, `ci`, and so on).
-
-Sync each channel's permissions to the Category, so the bot's role has exactly View Channel, Send
-Messages and Embed Links there. Set the Category, or the whole server, to "Only @mentions": the
-Gateway mentions me only on `critical` Notifications.
-
-Renaming a channel changes the route with no warning. Shion reads the Discord cache on every
-Delivery, so adding or renaming a channel takes effect immediately, and a duplicate name goes to
-the channel higher in the sidebar.
 
 ## Inviting the bot
 
