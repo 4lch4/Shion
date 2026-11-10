@@ -17,7 +17,7 @@ Every package is versioned on its own with [Changesets](https://changesets.dev):
 
 `latest` is a convenience for trying the newest build. Do not deploy from it: it carries no version
 information, so "which version is running?" has no answer in the registry. A deployed container
-should track an exact version — see [Deployment](./operations.md#deployment).
+should track an exact version — see [Deployment](#deployment).
 
 ```sh
 cd packages/gateway
@@ -82,7 +82,8 @@ cd /mnt/volume_apps/apps/shion
 IMAGE_TAG="$(cat .current-tag)" docker compose logs -f bot
 ```
 
-The [`shion` Docker network](./development.md#docker-compose) is created once for the whole host.
+The `shion` Docker network, and why the server's `compose.yaml` keeps it `external: true`, are
+covered in [Docker Compose](./development.md#docker-compose).
 
 On a fresh server, I register the Discord commands once:
 
