@@ -1,0 +1,85 @@
+name: Send Notification
+
+# POSTs one Notification to Shion. It looks the host up on the tailnet with
+# `tailscale ip`, posts the body to /v1/notifications and throws the response
+# away: a Caller only cares whether the send returned 2xx, never where the
+# Notification landed. The caller joins the tailnet; this action never does.
+#
+# Every input arrives through `env:` and is never written into `run:` as
+# `${{ inputs.* }}`. Callers pass text such as commit messages, and
+# interpolating that into a script would let it run commands.
+#
+# A failed send fails the step, including a missing token. A caller that would
+# rather keep its job green sets `continue-on-error: true`.
+description: POST one Notification to Shion
+
+inputs:
+  source:
+    description: Source of the Notification, such as 4lch4/Shion.
+    required: true
+  level:
+    description: Level of the Notification, such as info, warning or critical.
+    required: false
+    default: info
+  topic:
+    description: Topic of the Notification, such as ci or deploy. Omit for none.
+    required: false
+    default: ""
+  text:
+    description: Text of the Notification. Anything past 2000 characters is cut.
+    required: true
+  token:
+    description: Shion's API token.
+    required: true
+  host:
+    description: Host on the tailnet that runs Shion.
+    required: false
+    default: aicgen00
+  port:
+    description: Port the Gateway publishes on that host.
+    required: false
+    default: "3300"
+
+runs:
+  using: composite
+  steps:
+    - name: Send the Notification
+      shell: bash
+      env:
+        SOURCE: ${{ inputs.source }}
+        LEVEL: ${{ inputs.level }}
+        TOPIC: ${{ inputs.topic }}
+        TEXT: ${{ inputs.text }}
+        TOKEN: ${{ inputs.token }}
+        HOST: ${{ inputs.host }}
+        PORT: ${{ inputs.port }}
+      run: |
+        set -euo pipefail
+
+        if [[ -z "${TOKEN:-}" ]]; then
+          echo "::error::No token; set the token input, usually secrets.SHION_API_TOKEN."
+          exit 1
+        fi
+
+        ip="$(sudo tailscale ip -4 "$HOST")"
+        if [[ -z "$ip" ]]; then
+          echo "::error::No tailnet IP for $HOST; has the caller joined the tailnet?"
+          exit 1
+        fi
+
+        # jq builds the JSON so the text stays one escaped string, and Topic is
+        # left out entirely when it is empty.
+        body="$(jq -n \
+          --arg source "$SOURCE" \
+          --arg level "$LEVEL" \
+          --arg topic "$TOPIC" \
+          --arg text "${TEXT:0:2000}" \
+          '{source: $source, level: $level, text: $text}
+           + (if $topic == "" then {} else {topic: $topic} end)')"
+
+        curl -fsS --retry 10 --retry-all-errors --retry-delay 3 \
+          -o /dev/null \
+          -X POST "http://$ip:$PORT/v1/notifications" \
+          -H "Authorization: Bearer $TOKEN" \
+          -H 'content-type: application/json' \
+          --data-binary "$body"

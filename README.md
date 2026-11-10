@@ -295,8 +295,9 @@ Version Packages pull request deploys every app it released:
    as `tag:ci` and runs `ssh deploy@aicgen00 "shion X.Y.Z"` over Tailscale SSH.
 3. On the server, `deploy-app` pulls `4lch4/shion-bot:X.Y.Z`, restarts the Gateway and waits up to
    90 seconds for `/health`. If it never turns healthy, it rolls back to the previous version.
-4. The workflow sends the result to Shion as a Notification, so I hear about every deploy. A failed
-   one is reported too, as long as the rollback left the Gateway running to receive it.
+4. The workflow sends the result to Shion as a Notification, with Source `4lch4/Shion` and Topic
+   `deploy`, so it lands in `#deploy`. A failed one is reported too, as long as the rollback left
+   the Gateway running to receive it.
 
 The `deploy` user's login shell only accepts `<app> <version>`, so the runner can deploy and
 nothing else. `deploy-app` and `deploy-shell` live in the private `4lch4/Infrastructure` repo
