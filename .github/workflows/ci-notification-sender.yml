@@ -15,7 +15,8 @@ name: CI Notification Sender
 #                         Tailscale OAuth client with the auth_keys (write)
 #                         scope and tag:notify. A tag:ci node can SSH in as
 #                         `deploy`, so CI Notifications get a tag that reaches
-#                         only the Gateway's port; the README has the policy.
+#                         only the Gateway's port; the policy is in
+#                         docs/ci-notifications.md.
 #   SHION_API_TOKEN       Shion's API_TOKEN.
 on:
   workflow_call:

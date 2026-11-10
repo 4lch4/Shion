@@ -12,10 +12,8 @@ rejects empty changesets. Markdown files inside a package, such as a README, don
 package change: `changedFilePatterns` in `config.json` excludes `**/*.md`, and `CHANGELOG.md` is
 written by Changesets.
 
-`.github/workflows/release.yml` collects the pending changesets into one Version Packages pull
-request. Merging that pull request is the release: Changesets tags each package
-`<package>@<version>` and the workflow builds and deploys every published package that has an
-image.
+The release flow — from pending changesets to the Version Packages pull request that tags,
+publishes and deploys — is in [`docs/operations.md`](../docs/operations.md).
 
 See [the Changesets documentation](https://changesets.dev) and
 [ADR 4](../docs/adr/0004-watchers-as-separate-images.md).
