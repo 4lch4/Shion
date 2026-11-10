@@ -1,0 +1,27 @@
+name: CI Notification
+
+# Reports Shion's own CI runs into #ci through the reusable sender.
+#
+# `Release` is watched as well, because it runs on every push to main and so is
+# the push that ships. The cost is accepted: a failed deploy turns Release red
+# too, and that run posts in both #deploy and #ci.
+#
+# `Deploy` is not watched: a deploy called on its own sends its own deploy
+# Notification. `Dependabot changeset` is not watched either, because it runs on
+# a pull request and a pass or fail there says nothing about main.
+on:
+  workflow_run:
+    workflows: [ CI, Release ]
+    types: [ completed ]
+
+permissions:
+  actions: read
+
+jobs:
+  notify:
+    name: Send the CI Notification
+    uses: ./.github/workflows/ci-notification-sender.yml
+    secrets:
+      TS_NOTIFY_OAUTH_CLIENT_ID: ${{ secrets.TS_NOTIFY_OAUTH_CLIENT_ID }}
+      TS_NOTIFY_OAUTH_SECRET: ${{ secrets.TS_NOTIFY_OAUTH_SECRET }}
+      SHION_API_TOKEN: ${{ secrets.SHION_API_TOKEN }}

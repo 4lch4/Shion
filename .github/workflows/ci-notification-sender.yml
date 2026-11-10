@@ -1,0 +1,222 @@
+name: CI Notification Sender
+
+# Sends one Notification about a CI run: a `warning` when a run on the default
+# branch fails, and an `info` when the same workflow goes green again after a
+# failure. A green run after a green one says nothing new, and a canceled or
+# skipped run says nothing at all.
+#
+# It is a reusable workflow, so another repository needs only a short trigger
+# file. Everything comes from the caller's `github.event.workflow_run`, and no
+# code is ever checked out: a commit message is attacker controlled, and this
+# way nothing from the caller runs here.
+#
+# Secrets:
+#   TS_NOTIFY_OAUTH_CLIENT_ID, TS_NOTIFY_OAUTH_SECRET
+#                         Tailscale OAuth client with the auth_keys (write)
+#                         scope and tag:notify. A tag:ci node can SSH in as
+#                         `deploy`, so CI Notifications get a tag that reaches
+#                         only the Gateway's port; the README has the policy.
+#   SHION_API_TOKEN       Shion's API_TOKEN.
+on:
+  workflow_call:
+    secrets:
+      TS_NOTIFY_OAUTH_CLIENT_ID:
+        description: Tailscale OAuth client ID for tag:notify.
+        required: true
+      TS_NOTIFY_OAUTH_SECRET:
+        description: Secret for that OAuth client.
+        required: true
+      SHION_API_TOKEN:
+        description: Shion's API token.
+        required: true
+
+jobs:
+  notify:
+    name: Send the CI Notification
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Reads the run that triggered this one, and nothing else.
+    permissions:
+      actions: read
+    # Only a run that could produce a Notification starts a runner. A pull
+    # request run, a canceled run, and a fork's pull request whose branch is
+    # called main all skip here, so they cost nothing.
+    if: >-
+      github.event.workflow_run.head_branch == github.event.repository.default_branch &&
+      contains(
+        fromJSON('["push", "schedule", "workflow_dispatch"]'),
+        github.event.workflow_run.event
+      ) &&
+      github.event.workflow_run.head_repository.full_name == github.repository &&
+      contains(fromJSON('["success", "failure"]'), github.event.workflow_run.conclusion)
+    steps:
+      # Works out whether to send, at what Level and what the text says before
+      # anything is sent, so this step only decides. Every value from the run
+      # arrives through `env:`; none of it is written into this script, since a
+      # commit message would otherwise be able to run commands.
+      - name: Decide the CI Notification
+        id: decide
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          RUN_ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
+          RUN_NUMBER: ${{ github.event.workflow_run.run_number }}
+          WORKFLOW_ID: ${{ github.event.workflow_run.workflow_id }}
+          WORKFLOW_NAME: ${{ github.event.workflow_run.name }}
+          BRANCH: ${{ github.event.workflow_run.head_branch }}
+          CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+          COMMIT_MESSAGE: ${{ github.event.workflow_run.head_commit.message }}
+          RUN_URL: ${{ github.event.workflow_run.html_url }}
+        run: |
+          set -euo pipefail
+
+          send=false
+          level=info
+          text=
+
+          # The conclusion of the run this one is compared with, once found:
+          # `success`, `failure`, or empty when there is no earlier run.
+          comparison=
+
+          if [[ "$CONCLUSION" == success ]]; then
+            # A re-run replaces the attempt it followed, so its own earlier
+            # attempts come first. An attempt that was canceled or skipped
+            # never finished, so it says nothing about whether the workflow was
+            # green before this one.
+            if ((RUN_ATTEMPT > 1)); then
+              for ((n = RUN_ATTEMPT - 1; n >= 1; n--)); do
+                attempt="$(gh api --jq '.conclusion' \
+                  "repos/$REPO/actions/runs/$RUN_ID/attempts/$n")"
+                echo "Attempt $n of run $RUN_ID ended in $attempt"
+                if [[ "$attempt" == success || "$attempt" == failure ]]; then
+                  comparison="$attempt"
+                  break
+                fi
+              done
+            fi
+
+            # Otherwise the comparison is the most recent completed run of the
+            # same workflow on the same branch. `status=completed` includes
+            # canceled and skipped runs, so those are skipped here too: they
+            # don't say the workflow was red. Three pages is deep enough for a
+            # branch that runs often, and stops this paging through a history it
+            # will never need.
+            #
+            # The branch filter matches a fork's pull request whose branch has
+            # the same name, so only this repository's runs count: a fork's red
+            # run says nothing about this branch.
+            if [[ -z "$comparison" ]]; then
+              for page in 1 2 3; do
+                runs="$(gh api --method GET \
+                  "repos/$REPO/actions/workflows/$WORKFLOW_ID/runs" \
+                  -f branch="$BRANCH" -f status=completed -f per_page=50 \
+                  -f page="$page")"
+
+                if [[ "$(jq '.workflow_runs | length' <<< "$runs")" -eq 0 ]]; then
+                  break
+                fi
+
+                while IFS=$'\t' read -r number earlier; do
+                  # A run numbered at or above this one is not earlier, whatever
+                  # order the API returned it in.
+                  ((number < RUN_NUMBER)) || continue
+                  if [[ "$earlier" == success || "$earlier" == failure ]]; then
+                    comparison="$earlier"
+                    break
+                  fi
+                done < <(jq -r --arg repo "$REPO" '.workflow_runs[]
+                  | select(.head_repository.full_name == $repo)
+                  | "\(.run_number)\t\(.conclusion)"' <<< "$runs")
+
+                [[ -z "$comparison" ]] || break
+              done
+            fi
+          fi
+
+          # A failure is always new information, and CI never sends `critical`,
+          # because a red main breaks nothing that is running. A success is
+          # worth one only after a failure, as "back to green".
+          if [[ "$CONCLUSION" == failure ]]; then
+            send=true
+            level=warning
+          elif [[ "$comparison" == failure ]]; then
+            send=true
+            level=info
+          fi
+
+          if [[ "$send" == true ]]; then
+            if [[ "$CONCLUSION" == failure ]]; then
+              subject="CI failed"
+            else
+              subject="CI passed again"
+            fi
+
+            text="$subject: $REPO $BRANCH, workflow \"$WORKFLOW_NAME\""
+
+            # Only the first line of the message: the rest is the commit body,
+            # and the action has 2000 characters to work with. The message stays
+            # a plain value here and is never evaluated.
+            summary="$(head -n 1 <<< "$COMMIT_MESSAGE")"
+            if [[ -n "$summary" ]]; then
+              text+=$'\n'"${SHA:0:7} $summary"
+            else
+              text+=$'\n'"${SHA:0:7}"
+            fi
+
+            # Only a failure has failed jobs, and a job that timed out is as
+            # failed as one that exited non-zero.
+            if [[ "$CONCLUSION" == failure ]]; then
+              jobs="$(gh api \
+                --jq '[.jobs[]
+                  | select(.conclusion == "failure" or .conclusion == "timed_out")
+                  | .name] | join(", ")' \
+                "repos/$REPO/actions/runs/$RUN_ID/attempts/$RUN_ATTEMPT/jobs?per_page=100")"
+              if [[ -n "$jobs" ]]; then
+                text+=$'\n'"Failed jobs: $jobs"
+              fi
+            fi
+
+            text+=$'\n'"$RUN_URL"
+          fi
+
+          echo "send=$send level=$level"
+
+          # The delimiter is random, so the commit message can never end the
+          # value early.
+          delimiter="$(openssl rand -hex 8)"
+          {
+            echo "send=$send"
+            echo "level=$level"
+            echo "text<<$delimiter"
+            printf '%s\n' "$text"
+            echo "$delimiter"
+          } >> "$GITHUB_OUTPUT"
+
+      # Only a run with something to say joins my tailnet. A run that sends
+      # nothing must not add a node to it.
+      - name: Join the tailnet
+        if: steps.decide.outputs.send == 'true'
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.TS_NOTIFY_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_NOTIFY_OAUTH_SECRET }}
+          tags: tag:notify
+          ping: aicgen00
+
+      # The caller's repository has no checkout of Shion, so the action is
+      # reached at its path in this repository rather than with `./`.
+      #
+      # No continue-on-error: a Notification that could not be sent fails this
+      # run, which is a separate run from CI, so CI keeps its own result and
+      # GitHub's failure email is the report that the Notification was missed.
+      - name: Send the CI Notification
+        if: steps.decide.outputs.send == 'true'
+        uses: 4lch4/Shion/.github/actions/send-notification@main
+        with:
+          source: ${{ github.repository }}
+          level: ${{ steps.decide.outputs.level }}
+          topic: ci
+          text: ${{ steps.decide.outputs.text }}
+          token: ${{ secrets.SHION_API_TOKEN }}
