@@ -16,8 +16,8 @@ plus the Watchers, which poll things for me. The domain language for all of that
 
 ## Layout
 
-The repository is a Bun workspace. Everything the Gateway runs — `src/`, `tests/`, the `Dockerfile`,
-`compose.yaml` and `.env.example` — lives in `packages/gateway/`. Each Watcher is its own package
+The repository is a Bun workspace. Everything the Gateway runs lives in `packages/gateway/`: `src/`,
+`tests/`, the `Dockerfile`, `compose.yaml` and `.env.example`. Each Watcher is its own package
 there, with its own image and version. Shared tooling, including the scripts under `scripts/`, stays
 at the root.
 
