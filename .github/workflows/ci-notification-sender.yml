@@ -103,6 +103,10 @@ jobs:
             # don't say the workflow was red. Three pages is deep enough for a
             # branch that runs often, and stops this paging through a history it
             # will never need.
+            #
+            # The branch filter matches a fork's pull request whose branch has
+            # the same name, so only this repository's runs count: a fork's red
+            # run says nothing about this branch.
             if [[ -z "$comparison" ]]; then
               for page in 1 2 3; do
                 runs="$(gh api --method GET \
@@ -122,8 +126,9 @@ jobs:
                     comparison="$earlier"
                     break
                   fi
-                done < <(jq -r '.workflow_runs[] | "\(.run_number)\t\(.conclusion)"' \
-                  <<< "$runs")
+                done < <(jq -r --arg repo "$REPO" '.workflow_runs[]
+                  | select(.head_repository.full_name == $repo)
+                  | "\(.run_number)\t\(.conclusion)"' <<< "$runs")
 
                 [[ -z "$comparison" ]] || break
               done
