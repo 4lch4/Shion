@@ -29,16 +29,11 @@ other Compose projects reach it as `shion-gateway`.
 
 1. Install Bun and verify it with `bun --version`.
 2. Install dependencies from the root with `bun install`.
-3. Create the Shion Category in Discord, following
-   [`docs/configuration.md`](./docs/configuration.md#the-shion-category). This comes before
-   `.env`, because `DISCORD_CATEGORY_ID` needs it.
-4. `cd packages/gateway && cp .env.example .env`, then fill it in from
-   [`docs/configuration.md`](./docs/configuration.md#environment-variables).
+3. Create the Shion Category in Discord, following [`docs/configuration.md`](./docs/configuration.md#the-shion-category). This comes before `.env`, because `DISCORD_CATEGORY_ID` needs it.
+4. `cd packages/gateway && cp .env.example .env`, then fill it in from [`docs/configuration.md`](./docs/configuration.md#environment-variables).
 5. Register the slash command with `bun run deploy:commands`.
 6. Start the Gateway with `bun run dev`.
-7. Invite the bot with the permissions in
-   [`docs/configuration.md`](./docs/configuration.md#inviting-the-bot), and check that `/ping`
-   replies `Pong!`.
+7. Invite the bot with the permissions in [`docs/configuration.md`](./docs/configuration.md#inviting-the-bot), and check that `/ping` replies `Pong!`.
 8. Check the API delivers a Notification:
 
    ```sh
@@ -48,9 +43,7 @@ other Compose projects reach it as `shion-gateway`.
      -d '{"source":"manual","level":"warning","text":"hello from curl"}'
    ```
 
-   A `200` with `"status":"delivered"` means it reached Discord; see
-   [`docs/api.md`](./docs/api.md#post-v1notifications) for `deliveredTo`, `rerouted` and the rest
-   of the response.
+   A `200` with `"status":"delivered"` means it reached Discord; see [`docs/api.md`](./docs/api.md#post-v1notifications) for `deliveredTo`, `rerouted` and the rest of the response.
 
 ## Documentation
 
