@@ -52,5 +52,10 @@
         "useSortedPackageJson": "on"
       }
     }
+  },
+  "markdown": {
+    "formatter": {
+      "proseWrap": "preserve"
+    }
   }
 }
