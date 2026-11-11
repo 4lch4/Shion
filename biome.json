@@ -53,12 +53,9 @@
       }
     }
   },
-  "overrides": [
-    {
-      "includes": ["**/*.md"],
-      "formatter": {
-        "enabled": false
-      }
+  "markdown": {
+    "formatter": {
+      "proseWrap": "preserve"
     }
-  ]
+  }
 }
