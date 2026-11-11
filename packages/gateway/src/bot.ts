@@ -1,5 +1,6 @@
 import { Client, Events, GatewayIntentBits } from 'discord.js'
 import { pingCommand } from './commands/ping'
+import { posthog } from './posthog'
 
 export interface GatewayStatus {
   isReady(): boolean
@@ -26,7 +27,16 @@ export function createDiscordClient(): Client {
     }
 
     if (interaction.commandName === pingCommand.data.name) {
-      await pingCommand.execute(interaction)
+      const execute = async () => {
+        await pingCommand.execute(interaction)
+        posthog?.capture({ event: 'ping_command_completed' })
+      }
+
+      if (posthog) {
+        await posthog.withContext({ distinctId: interaction.user.id }, execute)
+      } else {
+        await execute()
+      }
     }
   })
 
