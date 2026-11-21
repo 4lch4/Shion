@@ -57,5 +57,13 @@
     "formatter": {
       "proseWrap": "preserve"
     }
-  }
+  },
+  "overrides": [
+    {
+      "includes": ["docs/adr/**/*.md"],
+      "formatter": {
+        "enabled": false
+      }
+    }
+  ]
 }
