@@ -18,7 +18,7 @@
     },
     "packages/gateway": {
       "name": "shion",
-      "version": "0.5.0",
+      "version": "0.5.1",
       "dependencies": {
         "@elysia/openapi": "^1.4.17",
         "@sinclair/typebox": "^0.34.52",

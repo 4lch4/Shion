@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.1
+
+### Patch Changes
+
+- [#79](https://github.com/4lch4/Shion/pull/79) [`56a5544`](https://github.com/4lch4/Shion/commit/56a554449a13b449d6ee9c638e5b41608c0a491e) Thanks [@dependabot](https://github.com/apps/dependabot)! - Updated dependencies.
+
 ## 0.5.0
 
 ### Minor Changes
