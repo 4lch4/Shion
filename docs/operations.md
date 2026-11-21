@@ -80,7 +80,7 @@ Every Caller shares the Gateway's `API_TOKEN` (per-Caller tokens are [#21](https
    ```
 
 4. Check that `GET /v1/status` returns `200` with the new token and `401` with the old one.
-5. Set the `SHION_API_TOKEN` Actions secret on every repository that sends Notifications, piping the value in rather than pasting it: this repository, `4lch4/Automation` and `4lch4/rachel-water-reminder`. `gh search code --owner 4lch4 SHION_API_TOKEN` finds new ones.
-6. Update the copies off the server: the agents' token file for the `shion-notify` skill (`~/.secrets/shion-token` in WSL), scheduled tasks that post to Shion, local `.env` files such as LiveKit-Demo's, and the password manager.
+5. Set the `SHION_API_TOKEN` Actions secret on every repository that sends Notifications, piping the value in rather than pasting it: `gh search code --owner 4lch4 SHION_API_TOKEN` finds new ones.
+6. Update the copies off the server: the agents' token file for the `shion-notify` skill (`~/.secrets/shion-token` in WSL), scheduled tasks that post to Shion, local `.env` files, and the password manager.
 
 [#82](https://github.com/4lch4/Shion/issues/82) is the first rotation, done this way.
