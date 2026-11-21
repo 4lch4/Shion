@@ -65,3 +65,22 @@ IMAGE_TAG="$(cat .current-tag)" docker compose --profile setup run --rm register
 ```
 
 Ports are set independently: `API_HOST_PORT` is what the host publishes (`3300`), `API_PORT` is what the process binds inside the container (`3000`).
+
+### Rotating the API token
+
+Every Caller shares the Gateway's `API_TOKEN` (per-Caller tokens are [#21](https://github.com/4lch4/Shion/issues/21)), so a rotation moves them all at once. The Gateway keeps the old token until its container is recreated: `docker restart` doesn't reread `env_file`, so editing `.env` alone changes nothing. Once it's recreated, any Caller still on the old token gets `401`.
+
+1. Generate the new token with `openssl rand -hex 32` and put it in `apps/shion/.env`.
+2. Copy it into each Watcher's and other app's `.env` on the server, without printing it. Today that's `apps/opencode-watcher/.env` (`API_TOKEN`) and `apps/rachel-water-reminder/.env` (`SHION_API_TOKEN`).
+3. Recreate the Gateway, then each of those apps, at their running version:
+
+   ```sh
+   cd /mnt/volume_apps/apps/shion
+   sudo env IMAGE_TAG="$(cat .current-tag)" docker compose up -d --no-deps --force-recreate --wait bot
+   ```
+
+4. Check that `GET /v1/status` returns `200` with the new token and `401` with the old one.
+5. Set the `SHION_API_TOKEN` Actions secret on every repository that sends Notifications, piping the value in rather than pasting it: this repository, `4lch4/Automation` and `4lch4/rachel-water-reminder`. `gh search code --owner 4lch4 SHION_API_TOKEN` finds new ones.
+6. Update the copies off the server: the agents' token file for the `shion-notify` skill, scheduled tasks that post to Shion, local `.env` files such as LiveKit-Demo's, and the password manager.
+
+[#82](https://github.com/4lch4/Shion/issues/82) is the first rotation, done this way.
