@@ -1,0 +1,5 @@
+---
+'shion': patch
+---
+
+Updated dependencies.
