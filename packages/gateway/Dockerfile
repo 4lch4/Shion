@@ -2,14 +2,14 @@
 # Only the root manifest, the lockfile and this package's manifest are copied
 # before installing, so `--filter` installs this package's dependencies and
 # nothing from the other workspace packages.
-FROM oven/bun:1.4.4 AS production-dependencies
+FROM oven/bun:1.4.5 AS production-dependencies
 
 WORKDIR /app
 COPY package.json bun.lock ./
 COPY packages/gateway/package.json ./packages/gateway/
 RUN bun install --frozen-lockfile --production --ignore-scripts --filter ./packages/gateway
 
-FROM oven/bun:1.4.4 AS runtime
+FROM oven/bun:1.4.5 AS runtime
 
 WORKDIR /app
 ENV NODE_ENV=production
