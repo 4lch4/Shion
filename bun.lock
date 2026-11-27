@@ -18,7 +18,7 @@
     },
     "packages/gateway": {
       "name": "shion",
-      "version": "0.5.1",
+      "version": "0.5.2",
       "dependencies": {
         "@elysia/openapi": "^1.4.17",
         "@sinclair/typebox": "^0.34.52",
@@ -30,7 +30,7 @@
     },
     "packages/opencode-watcher": {
       "name": "opencode-watcher",
-      "version": "0.2.0",
+      "version": "0.2.1",
       "dependencies": {
         "@shion/watcher-kit": "workspace:*",
       },
