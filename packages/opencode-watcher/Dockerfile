@@ -2,7 +2,7 @@
 # Only the root manifest, the lockfile and the manifests of this package and the
 # workspace package it uses are copied before installing, so `--filter` installs
 # this package's dependencies and nothing from the Gateway's.
-FROM oven/bun:1.4.4 AS production-dependencies
+FROM oven/bun:1.4.5 AS production-dependencies
 
 WORKDIR /app
 COPY package.json bun.lock ./
@@ -10,7 +10,7 @@ COPY packages/watcher-kit/package.json ./packages/watcher-kit/
 COPY packages/opencode-watcher/package.json ./packages/opencode-watcher/
 RUN bun install --frozen-lockfile --production --ignore-scripts --filter ./packages/opencode-watcher
 
-FROM oven/bun:1.4.4 AS runtime
+FROM oven/bun:1.4.5 AS runtime
 
 WORKDIR /app
 ENV NODE_ENV=production
