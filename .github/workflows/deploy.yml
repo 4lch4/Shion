@@ -47,9 +47,11 @@ on:
 permissions:
   contents: read
 
-# One deploy at a time for the whole server, not one per app: two apps must
-# never deploy at once, and a second one waits rather than canceling the
-# first, which could leave the server mid-deploy.
+# One Shion deploy at a time: a second one waits rather than canceling the
+# first, which could leave the server mid-deploy. Concurrency groups are
+# scoped to this repo, so other apps' deploys to AICGEN00 can still overlap
+# with this one; that's safe because each app deploys only in its own folder
+# and `image prune -f` only removes untagged images.
 concurrency:
   group: deploy-aicgen00
   cancel-in-progress: false
