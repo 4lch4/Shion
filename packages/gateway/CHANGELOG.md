@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.2
+
+### Patch Changes
+
+- [#92](https://github.com/4lch4/Shion/pull/92) [`7d61e0f`](https://github.com/4lch4/Shion/commit/7d61e0f83e2a39d98b27f1dbb74b9f63fc15674d) Thanks [@4lch4-Agents](https://github.com/4lch4-Agents)! - Run on Bun 1.4.5.
+
 ## 0.5.1
 
 ### Patch Changes
